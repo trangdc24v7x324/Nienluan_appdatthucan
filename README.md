@@ -2,7 +2,7 @@
 
 Học kỳ 2, Năm học 2025-2026
 
-**Tên dự án**: ứNG DỤNG ĐẶT THỨC ĂN NHANH
+**Tên dự án**: ỨNG DỤNG ĐẶT THỨC ĂN NHANH
 
 **MSSV1**: DC24V7X324
 
