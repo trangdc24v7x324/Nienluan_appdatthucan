@@ -96,24 +96,25 @@ class FoodAvailable extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalizedQuery = normalizeText(searchQuery.trim());
 
-    final filteredItems = foodItems.where((item) {
-      final title = normalizeText(item['title'].toString());
-      final subtitle = normalizeText(item['subtitle'].toString());
-      final description = normalizeText(item['description'].toString());
-      final category = item['category'].toString().toLowerCase();
+    final filteredItems =
+        foodItems.where((item) {
+          final title = normalizeText(item['title'].toString());
+          final subtitle = normalizeText(item['subtitle'].toString());
+          final description = normalizeText(item['description'].toString());
+          final category = item['category'].toString().toLowerCase();
 
-      final matchesSearch =
-          normalizedQuery.isEmpty ||
-          title.contains(normalizedQuery) ||
-          subtitle.contains(normalizedQuery) ||
-          description.contains(normalizedQuery) ||
-          category.contains(normalizedQuery);
+          final matchesSearch =
+              normalizedQuery.isEmpty ||
+              title.contains(normalizedQuery) ||
+              subtitle.contains(normalizedQuery) ||
+              description.contains(normalizedQuery) ||
+              category.contains(normalizedQuery);
 
-      final matchesCategory =
-          selectedCategory == 'all' || category == selectedCategory;
+          final matchesCategory =
+              selectedCategory == 'all' || category == selectedCategory;
 
-      return matchesSearch && matchesCategory;
-    }).toList();
+          return matchesSearch && matchesCategory;
+        }).toList();
 
     if (filteredItems.isEmpty) {
       return const Center(

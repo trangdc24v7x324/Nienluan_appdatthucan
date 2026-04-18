@@ -189,9 +189,8 @@ class _FoodCardState extends State<FoodCard> {
                               widget.isFavorited
                                   ? CupertinoIcons.heart_fill
                                   : CupertinoIcons.heart,
-                              color: widget.isFavorited
-                                  ? Colors.red
-                                  : Colors.grey,
+                              color:
+                                  widget.isFavorited ? Colors.red : Colors.grey,
                               size: 21,
                             ),
                           ),

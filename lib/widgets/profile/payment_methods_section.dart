@@ -25,26 +25,28 @@ class PaymentMethodsSection extends StatelessWidget {
     return SectionCard(
       title: 'Phương thức thanh toán',
       child: Column(
-        children: methods.map((method) {
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(_getIcon(method.type)),
-            title: Text(
-              method.title,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(method.subtitle),
-            trailing: method.isDefault
-                ? const Text(
-                    'Mặc định',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                : null,
-          );
-        }).toList(),
+        children:
+            methods.map((method) {
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(_getIcon(method.type)),
+                title: Text(
+                  method.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(method.subtitle),
+                trailing:
+                    method.isDefault
+                        ? const Text(
+                          'Mặc định',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                        : null,
+              );
+            }).toList(),
       ),
     );
   }

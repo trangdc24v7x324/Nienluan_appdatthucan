@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
+import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 
@@ -40,10 +41,15 @@ class _PaymentPageState extends State<PaymentPage> {
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
-    final profileProvider = Provider.of<ProfileProvider>(
-      context,
-      listen: false,
-    );
+    final profileProvider = Provider.of<ProfileProvider>(context);
+    final profile = profileProvider.profile;
+
+    final defaultAddress =
+        profile?.addresses.where((a) => a.isDefault).isNotEmpty == true
+            ? profile!.addresses.firstWhere((a) => a.isDefault)
+            : (profile != null && profile.addresses.isNotEmpty
+                ? profile.addresses.first
+                : null);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
@@ -59,10 +65,125 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
         iconTheme: const IconThemeData(color: Color(0xFF3C2F2F)),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Địa chỉ giao hàng',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF3C2F2F),
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushNamed(context, AppRoutes.profile);
+                        },
+                        child: const Text('Thay đổi'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (defaultAddress != null) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          color: Color(0xFFEF2A39),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    defaultAddress.receiverName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: Color(0xFF3C2F2F),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (defaultAddress.isDefault)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEECEC),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Text(
+                                        'Mặc định',
+                                        style: TextStyle(
+                                          color: Color(0xFFEF2A39),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                defaultAddress.phoneNumber,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF555555),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                defaultAddress.fullAddress,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF555555),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    const Text(
+                      'Chưa có địa chỉ giao hàng. Vui lòng thêm địa chỉ trong trang cá nhân.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -88,7 +209,6 @@ class _PaymentPageState extends State<PaymentPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   RadioListTile<String>(
                     value: 'Tiền mặt',
                     groupValue: selectedMethod,
@@ -164,7 +284,7 @@ class _PaymentPageState extends State<PaymentPage> {
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 20),
 
             Container(
               padding: const EdgeInsets.all(16),
@@ -214,19 +334,27 @@ class _PaymentPageState extends State<PaymentPage> {
                         ),
                       ),
                       onPressed: () {
-                        profileProvider.addOrder(
-                          cart.items,
-                          cart.totalPrice,
-                          paymentMethod: selectedMethod,
-                          note: noteController.text.trim(),
-                        );
+                        if (defaultAddress == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Vui lòng thêm địa chỉ giao hàng trước khi thanh toán.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final orderProvider = context.read<OrderProvider>();
+
+                        orderProvider.placeOrder(cart.items, cart.totalPrice);
 
                         cart.clearCart();
 
                         showDialog(
                           context: context,
                           barrierDismissible: false,
-                          builder: (context) {
+                          builder: (dialogContext) {
                             return AlertDialog(
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
@@ -241,13 +369,10 @@ class _PaymentPageState extends State<PaymentPage> {
                               actions: [
                                 TextButton(
                                   onPressed: () {
-                                    Navigator.pop(context); // đóng dialog
-
-                                    Navigator.pushNamedAndRemoveUntil(
+                                    Navigator.of(dialogContext).pop();
+                                    Navigator.pushNamed(
                                       context,
-                                      AppRoutes.home,
-                                      (route) => false,
-                                      arguments: {'index': 3}, // tab Orders
+                                      AppRoutes.orders,
                                     );
                                   },
                                   child: const Text('Xem đơn hàng'),
@@ -258,8 +383,7 @@ class _PaymentPageState extends State<PaymentPage> {
                                     foregroundColor: Colors.white,
                                   ),
                                   onPressed: () {
-                                    Navigator.pop(context); // đóng dialog
-
+                                    Navigator.of(dialogContext).pop();
                                     Navigator.pushNamedAndRemoveUntil(
                                       context,
                                       AppRoutes.home,

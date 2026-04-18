@@ -3,30 +3,23 @@ import 'package:flutter/material.dart';
 class SectionCard extends StatelessWidget {
   final String title;
   final Widget child;
-  final Widget? trailing;
+  final Widget? action;
 
   const SectionCard({
     super.key,
     required this.title,
     required this.child,
-    this.trailing,
+    this.action,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: const Color(0xFFF1F1F1),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,15 +30,16 @@ class SectionCard extends StatelessWidget {
                 child: Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 17,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
+                    color: Color(0xFF3C2F2F),
                   ),
                 ),
               ),
-              if (trailing != null) trailing!,
+              if (action != null) action!,
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           child,
         ],
       ),

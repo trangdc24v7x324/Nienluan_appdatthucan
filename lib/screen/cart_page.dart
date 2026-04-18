@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});

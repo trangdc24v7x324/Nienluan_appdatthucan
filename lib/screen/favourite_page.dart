@@ -23,64 +23,65 @@ class FavouritePage extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 1,
       ),
-      body: favorites.isEmpty
-          ? Center(
-              child: Text(
-                'No favorites yet!',
-                style: GoogleFonts.roboto(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w300,
+      body:
+          favorites.isEmpty
+              ? Center(
+                child: Text(
+                  'No favorites yet!',
+                  style: GoogleFonts.roboto(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w300,
+                  ),
                 ),
+              )
+              : GridView.builder(
+                padding: const EdgeInsets.all(10),
+                itemCount: favorites.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: favorites.length == 1 ? 1 : 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.6,
+                ),
+                itemBuilder: (context, index) {
+                  final item = favorites[index];
+
+                  return FoodCard(
+                    title: item['title'],
+                    subtitle: item['subtitle'],
+                    rating: item['rating'],
+                    image: item['image'],
+                    description: item['description'],
+                    deliveryTime: item['deliveryTime'],
+                    price: item['price'],
+                    isFavorited: true,
+                    onFavoriteToggle: () {},
+                    onAddToCart: () {
+                      final cart = Provider.of<CartProvider>(
+                        context,
+                        listen: false,
+                      );
+
+                      cart.addItem(
+                        CartItem(
+                          title: item['title'],
+                          image: item['image'],
+                          price: item['price'],
+                          quantity: 1,
+                        ),
+                      );
+
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${item['title']} added to cart'),
+                          duration: const Duration(milliseconds: 900),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(10),
-              itemCount: favorites.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: favorites.length == 1 ? 1 : 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 0.6,
-              ),
-              itemBuilder: (context, index) {
-                final item = favorites[index];
-
-                return FoodCard(
-                  title: item['title'],
-                  subtitle: item['subtitle'],
-                  rating: item['rating'],
-                  image: item['image'],
-                  description: item['description'],
-                  deliveryTime: item['deliveryTime'],
-                  price: item['price'],
-                  isFavorited: true,
-                  onFavoriteToggle: () {},
-                  onAddToCart: () {
-                    final cart = Provider.of<CartProvider>(
-                      context,
-                      listen: false,
-                    );
-
-                    cart.addItem(
-                      CartItem(
-                        title: item['title'],
-                        image: item['image'],
-                        price: item['price'],
-                        quantity: 1,
-                      ),
-                    );
-
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('${item['title']} added to cart'),
-                        duration: const Duration(milliseconds: 900),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
     );
   }
 }

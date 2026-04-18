@@ -1,20 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/cart_item_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/order_history_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/user_profile_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 import 'package:ct484tx_project_trangdc24v7x324/services/profile_service.dart';
+import 'package:ct484tx_project_trangdc24v7x324/models/address_model.dart';
 
 class ProfileProvider extends ChangeNotifier {
   final ProfileService _profileService = ProfileService();
 
   UserProfileModel? _profile;
   bool _isLoading = false;
-  bool _isEditing = false;
+
+  bool _isEditingGeneralInfo = false;
 
   UserProfileModel? get profile => _profile;
   bool get isLoading => _isLoading;
-  bool get isEditing => _isEditing;
+  bool get isEditingGeneralInfo => _isEditingGeneralInfo;
+
+  bool _isEditingAddress = false;
+  bool get isEditingAddress => _isEditingAddress;
+
+  void toggleAddressEdit() {
+    _isEditingAddress = !_isEditingAddress;
+    notifyListeners();
+  }
 
   Future<void> loadProfile() async {
     if (_profile != null) return;
@@ -28,8 +36,8 @@ class ProfileProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleEditMode() {
-    _isEditing = !_isEditing;
+  void toggleGeneralInfoEdit() {
+    _isEditingGeneralInfo = !_isEditingGeneralInfo;
     notifyListeners();
   }
 
@@ -49,6 +57,8 @@ class ProfileProvider extends ChangeNotifier {
       gender: gender,
       dateOfBirth: dateOfBirth,
     );
+
+    _isEditingGeneralInfo = false;
     notifyListeners();
   }
 
@@ -59,41 +69,9 @@ class ProfileProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addOrder(
-    List<CartItem> cartItems,
-    double totalAmount, {
-    required String paymentMethod,
-    String? note,
-  }) {
-    if (_profile == null) return;
-
-    final now = DateTime.now();
-
-    final newOrder = OrderHistoryModel(
-      id: now.millisecondsSinceEpoch.toString(),
-      orderCode: '#${now.millisecondsSinceEpoch}',
-      orderDate: now,
-      totalAmount: totalAmount,
-      status: 'Đã giao',
-      itemCount: cartItems.fold<int>(0, (sum, item) => sum + item.quantity),
-      paymentMethod: paymentMethod,
-      note: note,
-    );
-
-    final updatedOrders = [newOrder, ..._profile!.orders];
-
-    _profile = _profile!.copyWith(orders: updatedOrders);
-    notifyListeners();
-  }
-
-  void saveProfile() {
-    _isEditing = false;
-    notifyListeners();
-  }
-
   void logout(BuildContext context) {
     _profile = null;
-    _isEditing = false;
+    _isEditingGeneralInfo = false;
     notifyListeners();
 
     Navigator.pushNamedAndRemoveUntil(
@@ -101,5 +79,14 @@ class ProfileProvider extends ChangeNotifier {
       AppRoutes.splash,
       (route) => false,
     );
+  }
+
+  void updateAddresses(List<AddressModel> newAddresses) {
+    if (_profile == null) return;
+
+    _profile = _profile!.copyWith(addresses: newAddresses);
+
+    _isEditingAddress = false;
+    notifyListeners();
   }
 }

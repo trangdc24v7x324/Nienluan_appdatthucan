@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
@@ -22,7 +21,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
       child: MaterialApp(
-        title: 'yourfood',
+        title: 'ct484tx_project_trangdc24v7x324',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           scaffoldBackgroundColor: Colors.white,

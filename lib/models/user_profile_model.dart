@@ -1,6 +1,5 @@
 import 'address_model.dart';
 import 'payment_method_model.dart';
-import 'order_history_model.dart';
 
 class UserProfileModel {
   final String fullName;
@@ -14,7 +13,6 @@ class UserProfileModel {
 
   final List<AddressModel> addresses;
   final List<PaymentMethodModel> paymentMethods;
-  final List<OrderHistoryModel> orders;
 
   UserProfileModel({
     required this.fullName,
@@ -26,7 +24,6 @@ class UserProfileModel {
     required this.passwordMasked,
     required this.addresses,
     required this.paymentMethods,
-    required this.orders,
   });
 
   UserProfileModel copyWith({
@@ -39,7 +36,6 @@ class UserProfileModel {
     String? passwordMasked,
     List<AddressModel>? addresses,
     List<PaymentMethodModel>? paymentMethods,
-    List<OrderHistoryModel>? orders,
   }) {
     return UserProfileModel(
       fullName: fullName ?? this.fullName,
@@ -51,7 +47,6 @@ class UserProfileModel {
       passwordMasked: passwordMasked ?? this.passwordMasked,
       addresses: addresses ?? this.addresses,
       paymentMethods: paymentMethods ?? this.paymentMethods,
-      orders: orders ?? this.orders,
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'package:ct484tx_project_trangdc24v7x324/models/address_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/order_history_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/payment_method_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/user_profile_model.dart';
 
@@ -45,7 +44,6 @@ class ProfileService {
           type: 'visa',
         ),
       ],
-      orders: [],
     );
   }
 }

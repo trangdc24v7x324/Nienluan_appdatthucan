@@ -4,10 +4,10 @@ import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart'
 import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/account_info_section.dart';
 import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/address_section.dart';
 import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/general_info_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/order_history_section.dart';
 import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/payment_methods_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/profile_action_buttons.dart';
 import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/profile_header.dart';
+import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
+import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -36,6 +36,7 @@ class _ProfilePageState extends State<ProfilePage> {
           }
 
           final profile = provider.profile!;
+          context.watch<OrderProvider>().orders.take(3).toList();
 
           return SafeArea(
             child: Column(
@@ -83,7 +84,28 @@ class _ProfilePageState extends State<ProfilePage> {
                         ListView(
                           children: [
                             const SizedBox(height: 30),
-                            GeneralInfoSection(profile: profile),
+
+                            GeneralInfoSection(
+                              profile: profile,
+                              isEditing: provider.isEditingGeneralInfo,
+                              onEdit: provider.toggleGeneralInfoEdit,
+                              onSave: ({
+                                required fullName,
+                                required email,
+                                required phoneNumber,
+                                required gender,
+                                required dateOfBirth,
+                              }) {
+                                provider.updateGeneralInfo(
+                                  fullName: fullName,
+                                  email: email,
+                                  phoneNumber: phoneNumber,
+                                  gender: gender,
+                                  dateOfBirth: dateOfBirth,
+                                );
+                              },
+                            ),
+
                             AccountInfoSection(
                               profile: profile,
                               onChangePassword: () {
@@ -96,25 +118,88 @@ class _ProfilePageState extends State<ProfilePage> {
                                 );
                               },
                             ),
-                            AddressSection(addresses: profile.addresses),
+
+                            AddressSection(
+                              addresses: profile.addresses,
+                              isEditing: provider.isEditingAddress,
+                              onEdit: provider.toggleAddressEdit,
+                              onSave: (updatedAddresses) {
+                                // tạm thời update local (chưa backend)
+                                provider.updateAddresses(updatedAddresses);
+                              },
+                            ),
+
                             PaymentMethodsSection(
                               methods: profile.paymentMethods,
                             ),
-                            OrderHistorySection(
-                              orders: profile.orders,
-                              onViewAll: () {},
-                            ),
-                            const SizedBox(height: 8),
-                            ProfileActionButtons(
-                              isEditing: provider.isEditing,
-                              onEdit: provider.toggleEditMode,
-                              onSave: () {
-                                provider.saveProfile();
+
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.pushNamed(context, AppRoutes.orders);
                               },
-                              onLogout: () {
-                                provider.logout(context);
-                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.only(top: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.receipt_long_outlined,
+                                      color: Color(0xFFEF2A39),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Lịch sử mua hàng',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(Icons.chevron_right),
+                                  ],
+                                ),
+                              ),
                             ),
+
+                            const SizedBox(height: 12),
+
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  provider.logout(context);
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                    color: Color(0xFF8E1F16),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Đăng xuất',
+                                  style: TextStyle(
+                                    color: Color(0xFF8E1F16),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+
                             const SizedBox(height: 12),
                           ],
                         ),
