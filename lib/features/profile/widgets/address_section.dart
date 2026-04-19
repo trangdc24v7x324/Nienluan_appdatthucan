@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/address_model.dart';
-import 'section_card.dart';
+import '../../../shared/widgets/section_card.dart';
 
 class AddressSection extends StatefulWidget {
   final List<AddressModel> addresses;

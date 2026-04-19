@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:ct484tx_project_trangdc24v7x324/constants/variables.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/cart_item_model.dart';
+import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/food_card.dart';
+import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/widgets/food_card.dart';
 
 class FoodAvailable extends StatelessWidget {
-  final List<Map<String, dynamic>> favoritedItems;
-  final void Function(Map<String, dynamic>) onFavoriteToggle;
+  final List<ProductModel> favoritedItems;
+  final void Function(ProductModel) onFavoriteToggle;
   final String searchQuery;
   final String selectedCategory;
 
@@ -92,16 +93,39 @@ class FoodAvailable extends StatelessWidget {
         .replaceAll('đ', 'd');
   }
 
+  bool isFavorited(ProductModel product) {
+    return favoritedItems.any((item) => item.id == product.id);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final productProvider = context.watch<ProductProvider>();
     final normalizedQuery = normalizeText(searchQuery.trim());
 
+    if (productProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (productProvider.error != null) {
+      return Center(
+        child: Text(
+          productProvider.error!,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.redAccent,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     final filteredItems =
-        foodItems.where((item) {
-          final title = normalizeText(item['title'].toString());
-          final subtitle = normalizeText(item['subtitle'].toString());
-          final description = normalizeText(item['description'].toString());
-          final category = item['category'].toString().toLowerCase();
+        productProvider.products.where((item) {
+          final title = normalizeText(item.title);
+          final subtitle = normalizeText(item.subtitle);
+          final description = normalizeText(item.description);
+          final category = normalizeText(item.category);
 
           final matchesSearch =
               normalizedQuery.isEmpty ||
@@ -111,9 +135,11 @@ class FoodAvailable extends StatelessWidget {
               category.contains(normalizedQuery);
 
           final matchesCategory =
-              selectedCategory == 'all' || category == selectedCategory;
+              selectedCategory == 'all' ||
+              category == normalizeText(selectedCategory) ||
+              category.contains(normalizeText(selectedCategory));
 
-          return matchesSearch && matchesCategory;
+          return item.isAvailable && matchesSearch && matchesCategory;
         }).toList();
 
     if (filteredItems.isEmpty) {
@@ -143,23 +169,17 @@ class FoodAvailable extends StatelessWidget {
         final item = filteredItems[index];
 
         return FoodCard(
-          title: item['title'].toString(),
-          subtitle: item['subtitle'].toString(),
-          rating: (item['rating'] as num).toDouble(),
-          image: item['image'].toString(),
-          description: item['description'].toString(),
-          deliveryTime: item['deliveryTime'].toString(),
-          price: (item['price'] as num).toDouble(),
-          isFavorited: favoritedItems.contains(item),
+          product: item,
+          isFavorited: isFavorited(item),
           onFavoriteToggle: () => onFavoriteToggle(item),
           onAddToCart: () {
             final cart = Provider.of<CartProvider>(context, listen: false);
 
             cart.addItem(
               CartItem(
-                title: item['title'].toString(),
-                image: item['image'].toString(),
-                price: (item['price'] as num).toDouble(),
+                title: item.title,
+                image: item.image,
+                price: item.price,
                 quantity: 1,
               ),
             );
@@ -167,7 +187,7 @@ class FoodAvailable extends StatelessWidget {
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('${item['title']} đã thêm vào giỏ hàng'),
+                content: Text('${item.title} đã thêm vào giỏ hàng'),
                 duration: const Duration(milliseconds: 900),
                 behavior: SnackBarBehavior.floating,
               ),

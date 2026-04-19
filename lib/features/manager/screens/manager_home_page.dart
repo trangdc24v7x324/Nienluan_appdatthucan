@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 import 'package:ct484tx_project_trangdc24v7x324/services/auth_service.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/manager/screens/manager_products_page.dart';
 
 class ManagerHomePage extends StatelessWidget {
   const ManagerHomePage({super.key});
@@ -82,7 +83,7 @@ class ManagerHomePage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const ManagerProductsPlaceholderPage(),
+                    builder: (_) => const ManagerProductsPage(),
                   ),
                 );
               },
@@ -148,7 +149,7 @@ class ManagerHomePage extends StatelessWidget {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Hiện tại dữ liệu sản phẩm của bạn vẫn đang là dữ liệu tĩnh. Bước tiếp theo nên làm là tạo ProductModel, ProductService và ProductProvider để nối collection products từ PocketBase.',
+                      'Hiện tại mới thực hiện được tính năng thêm, xóa, sửa sản phẩm. Quản lý đơn hàng đang triển khai.',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.black87,

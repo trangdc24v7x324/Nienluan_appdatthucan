@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/cart_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/favourite_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/home_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/orders_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/product_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/profile_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/splash_screen.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/notifications_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/chat_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/payment_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/login_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/register_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/screen/manager_home_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/cart_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/favourite_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/home_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/orders_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/product_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/profile/screens/profile_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/auth/screens/splash_screen.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/notifications_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/chat_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/screens/payment_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/auth/screens/login_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/auth/screens/register_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/manager/screens/manager_home_page.dart';
 
 class AppRoutes {
   static const String splash = '/';

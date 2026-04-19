@@ -12,11 +12,11 @@ class CategorySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categories = [
-      {'key': 'all', 'label': 'All'},
-      {'key': 'combos', 'label': 'Combos'},
-      {'key': 'food', 'label': 'Food'},
-      {'key': 'drink', 'label': 'Drink'},
+    const categories = [
+      {'key': 'all', 'label': 'Tất cả'},
+      {'key': 'combos', 'label': 'Combo'},
+      {'key': 'food', 'label': 'Món ăn'},
+      {'key': 'drink', 'label': 'Nước uống'},
     ];
 
     return SingleChildScrollView(
@@ -46,8 +46,8 @@ class CategorySelector extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       boxShadow:
                           isSelected
-                              ? [
-                                const BoxShadow(
+                              ? const [
+                                BoxShadow(
                                   color: Colors.black12,
                                   blurRadius: 6,
                                   offset: Offset(0, 3),

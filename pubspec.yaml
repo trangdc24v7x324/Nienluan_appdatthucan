@@ -17,6 +17,7 @@ dependencies:
   pocketbase: ^0.18.1
   image_picker: ^1.2.1
   shared_preferences: ^2.5.5
+  http: ^1.2.1
 
 dev_dependencies:
   flutter_test:

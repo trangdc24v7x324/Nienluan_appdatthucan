@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
+import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,9 +24,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => ProductProvider()),
       ],
       child: MaterialApp(
-        title: 'ct484tx_project_trangdc24v7x324',
+        title: 'YourFood',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           scaffoldBackgroundColor: Colors.white,

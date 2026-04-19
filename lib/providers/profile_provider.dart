@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/address_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/user_profile_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
@@ -10,6 +11,7 @@ import 'package:ct484tx_project_trangdc24v7x324/services/profile_service.dart';
 class ProfileProvider extends ChangeNotifier {
   final ProfileService _profileService = ProfileService();
   final AuthService _authService = AuthService();
+  final ImagePicker _picker = ImagePicker();
 
   UserProfileModel? _profile;
   bool _isLoading = false;
@@ -117,6 +119,21 @@ class ProfileProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> pickAndUpdateAvatar() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      await updateAvatar(File(pickedFile.path));
+    } catch (e) {
+      debugPrint('pickAndUpdateAvatar error: $e');
+    }
   }
 
   void logout(BuildContext context) {

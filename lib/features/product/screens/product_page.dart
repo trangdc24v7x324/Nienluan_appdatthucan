@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'package:ct484tx_project_trangdc24v7x324/models/cart_item_model.dart';
+import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
 
 class ProductPage extends StatefulWidget {
@@ -38,17 +39,59 @@ class _ProductPageState extends State<ProductPage> {
     return '${buffer.toString()}đ';
   }
 
+  Widget _buildProductImage(String image) {
+    if (image.isEmpty) {
+      return const Center(
+        child: Icon(Icons.fastfood, size: 60, color: Colors.grey),
+      );
+    }
+
+    final isNetworkImage =
+        image.startsWith('http://') || image.startsWith('https://');
+
+    if (isNetworkImage) {
+      return Image.network(
+        image,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Center(
+            child: Icon(Icons.fastfood, size: 60, color: Colors.grey),
+          );
+        },
+      );
+    }
+
+    return Image.asset(
+      image,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Icon(Icons.fastfood, size: 60, color: Colors.grey),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args = ModalRoute.of(context)?.settings.arguments;
 
-    final String title = args['title'].toString();
-    final double rating = (args['rating'] as num).toDouble();
-    final String image = args['image'].toString();
-    final String description = args['description'].toString();
-    final String deliveryTime = args['deliveryTime'].toString();
-    final double price = (args['price'] as num).toDouble();
+    if (args == null || args is! ProductModel) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text('Không có dữ liệu sản phẩm')),
+      );
+    }
+
+    final product = args;
+
+    final String title = product.title;
+    final String subtitle = product.subtitle;
+    final double rating = product.rating;
+    final String image = product.image;
+    final String description = product.description;
+    final String deliveryTime = product.deliveryTime;
+    final double price = product.price;
 
     final double totalPrice = price * quantity;
 
@@ -78,24 +121,10 @@ class _ProductPageState extends State<ProductPage> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(24),
                         ),
-                        child: Image.asset(
-                          image,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(
-                                Icons.fastfood,
-                                size: 60,
-                                color: Colors.grey,
-                              ),
-                            );
-                          },
-                        ),
+                        child: _buildProductImage(image),
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     Text(
                       title,
                       style: GoogleFonts.roboto(
@@ -106,9 +135,19 @@ class _ProductPageState extends State<ProductPage> {
                         ),
                       ),
                     ),
-
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.roboto(
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            color: Color(0xff808080),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
-
                     Row(
                       children: [
                         const Icon(Icons.star, color: Colors.amber, size: 18),
@@ -122,23 +161,25 @@ class _ProductPageState extends State<ProductPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '• $deliveryTime',
-                          style: GoogleFonts.roboto(
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              color: Color(0xff808080),
+                        if (deliveryTime.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '• $deliveryTime',
+                            style: GoogleFonts.roboto(
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xff808080),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-
                     const SizedBox(height: 20),
-
                     Text(
-                      description,
+                      description.isEmpty
+                          ? 'Chưa có mô tả cho sản phẩm này.'
+                          : description,
                       style: GoogleFonts.roboto(
                         textStyle: const TextStyle(
                           fontSize: 16,
@@ -147,9 +188,7 @@ class _ProductPageState extends State<ProductPage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     Text(
                       'Ghi chú',
                       style: GoogleFonts.roboto(
@@ -160,9 +199,7 @@ class _ProductPageState extends State<ProductPage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 10),
-
                     TextField(
                       controller: noteController,
                       maxLines: 3,
@@ -189,9 +226,7 @@ class _ProductPageState extends State<ProductPage> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 28),
-
                     Row(
                       children: [
                         Text(
@@ -265,7 +300,6 @@ class _ProductPageState extends State<ProductPage> {
                 ),
               ),
             ),
-
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
               decoration: const BoxDecoration(

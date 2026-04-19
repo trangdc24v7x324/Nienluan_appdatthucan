@@ -22,6 +22,33 @@ class CartPage extends StatelessWidget {
     return '${result.toString()}đ';
   }
 
+  Widget _buildCartImage(String image) {
+    if (image.isEmpty) {
+      return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+    }
+
+    final isNetwork =
+        image.startsWith('http://') || image.startsWith('https://');
+
+    if (isNetwork) {
+      return Image.network(
+        image,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+        },
+      );
+    }
+
+    return Image.asset(
+      image,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
@@ -88,14 +115,10 @@ class CartPage extends StatelessWidget {
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.all(8),
-                                  child: Image.asset(
-                                    item.image,
-                                    fit: BoxFit.contain,
-                                  ),
+                                  child: _buildCartImage(item.image),
                                 ),
                               ),
                               const SizedBox(width: 12),
-
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,9 +169,7 @@ class CartPage extends StatelessWidget {
                                   ],
                                 ),
                               ),
-
                               const SizedBox(width: 8),
-
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
@@ -176,7 +197,6 @@ class CartPage extends StatelessWidget {
                       },
                     ),
                   ),
-
                   Container(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                     decoration: const BoxDecoration(

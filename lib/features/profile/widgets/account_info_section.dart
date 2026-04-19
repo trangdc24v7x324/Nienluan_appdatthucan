@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/user_profile_model.dart';
-import 'section_card.dart';
+import '../../../shared/widgets/section_card.dart';
 
 class AccountInfoSection extends StatelessWidget {
   final UserProfileModel profile;
@@ -23,7 +23,7 @@ class AccountInfoSection extends StatelessWidget {
               const Expanded(
                 flex: 3,
                 child: Text(
-                  'Tên đăng nhập',
+                  'Họ và tên',
                   style: TextStyle(color: Colors.grey),
                 ),
               ),

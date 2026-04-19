@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/account_info_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/address_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/general_info_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/payment_methods_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/profile/profile_header.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/account_info_section.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/address_section.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/general_info_section.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/payment_methods_section.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/profile_header.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 

@@ -1,28 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 
 class FoodCard extends StatefulWidget {
-  final String title;
-  final String subtitle;
-  final double rating;
-  final String image;
-  final String description;
-  final String deliveryTime;
-  final double price;
+  final ProductModel product;
   final bool isFavorited;
   final VoidCallback onFavoriteToggle;
   final VoidCallback onAddToCart;
 
   const FoodCard({
     super.key,
-    required this.title,
-    required this.subtitle,
-    required this.rating,
-    required this.image,
-    required this.description,
-    required this.deliveryTime,
-    required this.price,
+    required this.product,
     required this.isFavorited,
     required this.onFavoriteToggle,
     required this.onAddToCart,
@@ -66,6 +55,34 @@ class _FoodCardState extends State<FoodCard> {
     return '${buffer.toString()}đ';
   }
 
+  Widget _buildImage() {
+    if (widget.product.image.isEmpty) {
+      return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+    }
+
+    final isNetwork =
+        widget.product.image.startsWith('http://') ||
+        widget.product.image.startsWith('https://');
+
+    if (isNetwork) {
+      return Image.network(
+        widget.product.image,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+        },
+      );
+    }
+
+    return Image.asset(
+      widget.product.image,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -74,15 +91,7 @@ class _FoodCardState extends State<FoodCard> {
         Navigator.pushNamed(
           context,
           AppRoutes.product,
-          arguments: {
-            'title': widget.title,
-            'subtitle': widget.subtitle,
-            'rating': widget.rating,
-            'image': widget.image,
-            'description': widget.description,
-            'deliveryTime': widget.deliveryTime,
-            'price': widget.price,
-          },
+          arguments: widget.product,
         );
       },
       child: Container(
@@ -104,19 +113,7 @@ class _FoodCardState extends State<FoodCard> {
               flex: 6,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                child: Center(
-                  child: Image.asset(
-                    widget.image,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.fastfood,
-                        size: 40,
-                        color: Colors.grey,
-                      );
-                    },
-                  ),
-                ),
+                child: Center(child: _buildImage()),
               ),
             ),
             Expanded(
@@ -127,7 +124,7 @@ class _FoodCardState extends State<FoodCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.title,
+                      widget.product.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -137,14 +134,14 @@ class _FoodCardState extends State<FoodCard> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      widget.subtitle,
+                      widget.product.subtitle,
                       style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      formatPrice(widget.price),
+                      formatPrice(widget.product.price),
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -159,7 +156,7 @@ class _FoodCardState extends State<FoodCard> {
                         const Icon(Icons.star, color: Colors.orange, size: 14),
                         const SizedBox(width: 4),
                         Text(
-                          widget.rating.toStringAsFixed(1),
+                          widget.product.rating.toStringAsFixed(1),
                           style: const TextStyle(fontSize: 12.5),
                         ),
                         const Spacer(),

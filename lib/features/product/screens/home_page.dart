@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
+import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/category_selector.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/food_list.dart';
-import 'package:ct484tx_project_trangdc24v7x324/widgets/nav_icon.dart';
+import 'package:ct484tx_project_trangdc24v7x324/shared/widgets/category_selector.dart';
+import 'package:ct484tx_project_trangdc24v7x324/features/product/widgets/food_list.dart';
+import 'package:ct484tx_project_trangdc24v7x324/shared/widgets/nav_icon.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,22 +19,35 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Map<String, dynamic>> favoritedItems = [];
+  List<ProductModel> favoritedItems = [];
   String searchQuery = '';
   String selectedCategory = 'all';
   int selectedIndex = 0;
 
-  void toggleFavorite(Map<String, dynamic> item) {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      final productProvider = context.read<ProductProvider>();
+      if (!productProvider.isLoading) {
+        productProvider.fetchProducts();
+      }
+    });
+  }
+
+  void toggleFavorite(ProductModel item) {
     setState(() {
-      if (favoritedItems.contains(item)) {
-        favoritedItems.remove(item);
+      final exists = favoritedItems.any((product) => product.id == item.id);
+
+      if (exists) {
+        favoritedItems.removeWhere((product) => product.id == item.id);
       } else {
         favoritedItems.add(item);
       }
     });
   }
 
-  void _handleTap(int index) async {
+  Future<void> _handleTap(int index) async {
     setState(() {
       selectedIndex = index;
     });
@@ -47,6 +62,8 @@ class _HomePageState extends State<HomePage> {
       case 3:
         await Navigator.pushNamed(context, AppRoutes.notifications);
         break;
+      default:
+        break;
     }
 
     if (!mounted) return;
@@ -58,7 +75,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final cart = Provider.of<CartProvider>(context);
+    final cart = context.watch<CartProvider>();
+    final productProvider = context.watch<ProductProvider>();
+
     final cartCount = cart.items.fold<int>(
       0,
       (sum, item) => sum + item.quantity,
@@ -66,8 +85,6 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
-
-      // ===== BOTTOM BAR =====
       bottomNavigationBar: Container(
         height: 76,
         decoration: const BoxDecoration(
@@ -106,16 +123,12 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-
-      // ===== BODY =====
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
               const SizedBox(height: 10),
-
-              // ===== HEADER =====
               Row(
                 children: [
                   Expanded(
@@ -159,10 +172,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 18),
-
-              // ===== SEARCH =====
               Row(
                 children: [
                   Expanded(
@@ -223,10 +233,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 18),
-
-              // ===== CATEGORY =====
               CategorySelector(
                 selectedCategory: selectedCategory,
                 onCategorySelected: (value) {
@@ -235,17 +242,19 @@ class _HomePageState extends State<HomePage> {
                   });
                 },
               ),
-
               const SizedBox(height: 14),
-
-              // ===== FOOD LIST =====
               Expanded(
-                child: FoodAvailable(
-                  favoritedItems: favoritedItems,
-                  onFavoriteToggle: toggleFavorite,
-                  searchQuery: searchQuery,
-                  selectedCategory: selectedCategory,
-                ),
+                child:
+                    productProvider.isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : productProvider.error != null
+                        ? Center(child: Text(productProvider.error!))
+                        : FoodAvailable(
+                          favoritedItems: favoritedItems,
+                          onFavoriteToggle: toggleFavorite,
+                          searchQuery: searchQuery,
+                          selectedCategory: selectedCategory,
+                        ),
               ),
             ],
           ),
