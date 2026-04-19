@@ -9,6 +9,9 @@ import 'package:ct484tx_project_trangdc24v7x324/screen/splash_screen.dart';
 import 'package:ct484tx_project_trangdc24v7x324/screen/notifications_page.dart';
 import 'package:ct484tx_project_trangdc24v7x324/screen/chat_page.dart';
 import 'package:ct484tx_project_trangdc24v7x324/screen/payment_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/screen/login_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/screen/register_page.dart';
+import 'package:ct484tx_project_trangdc24v7x324/screen/manager_home_page.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -19,11 +22,16 @@ class AppRoutes {
   static const String cart = '/cart';
   static const String orders = '/orders';
   static const String notifications = '/notifications';
-  static const chat = '/chat';
+  static const String chat = '/chat';
   static const String payment = '/payment';
+  static const String login = '/login';
+  static const String register = '/register';
+  static const String managerHome = '/manager-home';
 
   static Map<String, WidgetBuilder> get routes => {
     splash: (context) => const SplashScreen(),
+    login: (context) => const LoginPage(),
+    register: (context) => const RegisterPage(),
     home: (context) => const HomePage(),
     product: (context) => const ProductPage(),
     profile: (context) => const ProfilePage(),
@@ -31,7 +39,8 @@ class AppRoutes {
     cart: (context) => const CartPage(),
     orders: (context) => const OrdersPage(),
     notifications: (context) => const NotificationsPage(),
-    chat: (_) => const ChatPage(),
+    chat: (context) => const ChatPage(),
     payment: (context) => const PaymentPage(),
+    managerHome: (context) => const ManagerHomePage(),
   };
 }

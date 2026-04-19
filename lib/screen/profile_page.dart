@@ -21,7 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      context.read<ProfileProvider>().loadProfile();
+      context.read<ProfileProvider>().loadProfile(forceReload: true);
     });
   }
 
@@ -78,6 +78,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             child: ProfileHeader(
                               name: profile.fullName,
                               email: profile.email,
+                              avatarUrl: profile.avatarUrl,
                             ),
                           ),
                         ),
@@ -123,9 +124,10 @@ class _ProfilePageState extends State<ProfilePage> {
                               addresses: profile.addresses,
                               isEditing: provider.isEditingAddress,
                               onEdit: provider.toggleAddressEdit,
-                              onSave: (updatedAddresses) {
-                                // tạm thời update local (chưa backend)
-                                provider.updateAddresses(updatedAddresses);
+                              onSave: (updatedAddresses) async {
+                                await provider.updateAddresses(
+                                  updatedAddresses,
+                                );
                               },
                             ),
 

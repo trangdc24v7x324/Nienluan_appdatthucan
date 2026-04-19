@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
+import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -18,9 +19,16 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    _timer = Timer(const Duration(seconds: 10), () {
+    _timer = Timer(const Duration(seconds:7), () async {
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
+
+      final isLoggedIn = pb.authStore.isValid;
+
+      if (isLoggedIn) {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      }
     });
   }
 

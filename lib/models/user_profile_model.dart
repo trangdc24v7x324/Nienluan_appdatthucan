@@ -2,6 +2,8 @@ import 'address_model.dart';
 import 'payment_method_model.dart';
 
 class UserProfileModel {
+  final String? avatarUrl;
+
   final String fullName;
   final DateTime? dateOfBirth;
   final String gender;
@@ -15,6 +17,7 @@ class UserProfileModel {
   final List<PaymentMethodModel> paymentMethods;
 
   UserProfileModel({
+    required this.avatarUrl,
     required this.fullName,
     required this.dateOfBirth,
     required this.gender,
@@ -27,6 +30,7 @@ class UserProfileModel {
   });
 
   UserProfileModel copyWith({
+    String? avatarUrl,
     String? fullName,
     DateTime? dateOfBirth,
     String? gender,
@@ -38,6 +42,7 @@ class UserProfileModel {
     List<PaymentMethodModel>? paymentMethods,
   }) {
     return UserProfileModel(
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       fullName: fullName ?? this.fullName,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       gender: gender ?? this.gender,

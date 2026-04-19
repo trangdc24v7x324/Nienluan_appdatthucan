@@ -37,7 +37,7 @@ class OrdersPage extends StatelessWidget {
   String getStatusText(String status) {
     switch (status.toLowerCase()) {
       case 'delivered':
-        return 'Đã giao';
+        return 'Đã đặt';
       case 'pending':
         return 'Đang xử lý';
       case 'cancelled':

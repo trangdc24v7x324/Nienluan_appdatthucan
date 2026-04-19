@@ -265,13 +265,7 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
           widget.isEditing
               ? _editGenderItem()
               : _viewItem('Giới tính', widget.profile.gender),
-          widget.isEditing
-              ? _editTextItem(
-                'Email',
-                _emailController,
-                keyboardType: TextInputType.emailAddress,
-              )
-              : _viewItem('Email', widget.profile.email),
+          _viewItem('Email', widget.profile.email),
           widget.isEditing
               ? _editTextItem(
                 'Số điện thoại',
