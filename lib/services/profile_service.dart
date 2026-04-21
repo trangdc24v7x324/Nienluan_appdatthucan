@@ -1,24 +1,23 @@
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
-
 import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/address_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/payment_method_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/user_profile_model.dart';
+import 'package:http/http.dart' as http;
 
 class ProfileService {
   Future<void> updateAvatar(File file) async {
-    final user = pb.authStore.model;
+    final authUser = pb.authStore.model;
 
-    if (user == null) {
+    if (authUser == null) {
       throw Exception('Chưa đăng nhập');
     }
 
     await pb
         .collection('users')
         .update(
-          user.id,
+          authUser.id,
           files: [
             http.MultipartFile.fromBytes(
               'avatar',
@@ -30,19 +29,21 @@ class ProfileService {
   }
 
   Future<UserProfileModel> fetchProfile() async {
-    final user = pb.authStore.model;
+    final authUser = pb.authStore.model;
 
-    if (user == null) {
+    if (authUser == null) {
       throw Exception('Chưa đăng nhập');
     }
 
+    final user = await pb.collection('users').getOne(authUser.id);
     final userData = user.data;
 
     final avatarFile = userData['avatar'];
     String? avatarUrl;
 
     if (avatarFile != null && avatarFile.toString().trim().isNotEmpty) {
-      avatarUrl = '${pb.baseUrl}/api/files/users/${user.id}/$avatarFile';
+      avatarUrl =
+          '${pb.baseUrl}/api/files/users/${user.id}/$avatarFile?ts=${DateTime.now().millisecondsSinceEpoch}';
     }
 
     final addressResult = await pb
@@ -126,35 +127,36 @@ class ProfileService {
     required String gender,
     required DateTime? dateOfBirth,
   }) async {
-    final user = pb.authStore.model;
+    final authUser = pb.authStore.model;
 
-    if (user == null) {
+    if (authUser == null) {
       throw Exception('Chưa đăng nhập');
     }
 
     await pb
         .collection('users')
         .update(
-          user.id,
+          authUser.id,
           body: {
             'fullName': fullName,
             'phoneNumber': phoneNumber,
             'gender': gender,
             'dateOfBirth': dateOfBirth?.toIso8601String(),
+
           },
         );
   }
 
   Future<void> updateAddresses(List<AddressModel> newAddresses) async {
-    final user = pb.authStore.model;
+    final authUser = pb.authStore.model;
 
-    if (user == null) {
+    if (authUser == null) {
       throw Exception('Chưa đăng nhập');
     }
 
     final oldAddresses = await pb
         .collection('addresses')
-        .getFullList(filter: 'user = "${user.id}"');
+        .getFullList(filter: 'user = "${authUser.id}"');
 
     for (final item in oldAddresses) {
       await pb.collection('addresses').delete(item.id);
@@ -165,7 +167,7 @@ class ProfileService {
           .collection('addresses')
           .create(
             body: {
-              'user': user.id,
+              'user': authUser.id,
               'receiverName': address.receiverName,
               'phoneNumber': address.phoneNumber,
               'addressLine': address.fullAddress,

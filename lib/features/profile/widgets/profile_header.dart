@@ -1,10 +1,9 @@
 import 'dart:io';
 
+import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
-import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 
 class ProfileHeader extends StatelessWidget {
   final String name;
@@ -19,13 +18,19 @@ class ProfileHeader extends StatelessWidget {
   });
 
   Future<void> _pickImage(BuildContext context) async {
+    debugPrint('AVATAR TAP START');
+
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
+
+    debugPrint('PICKED: ${picked?.path}');
 
     if (picked == null) return;
 
     final file = File(picked.path);
+    debugPrint('CALL updateAvatar: ${file.path}');
     await context.read<ProfileProvider>().updateAvatar(file);
+    debugPrint('UPDATE AVATAR DONE');
   }
 
   @override
@@ -35,7 +40,13 @@ class ProfileHeader extends StatelessWidget {
     return Column(
       children: [
         GestureDetector(
-          onTap: isLoading ? null : () => _pickImage(context),
+          onTap: () async {
+            if (!isLoading) {
+              await _pickImage(context);
+            } else {
+              debugPrint('Loading đang bật nên không cho click');
+            }
+          },
           child: Stack(
             children: [
               Container(

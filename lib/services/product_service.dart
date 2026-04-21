@@ -1,10 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-
 import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 class ProductService {
   Future<List<ProductModel>> getProducts() async {
@@ -31,7 +30,7 @@ class ProductService {
 
         return ProductModel(
           id: record.id,
-          title: (data['name'] ?? data['title'] ?? '').toString(),
+          title: (data['title'] ?? '').toString(),
           subtitle: (data['subtitle'] ?? '').toString(),
           rating: parseDouble(data['rating']),
           image: _getImageUrl(record),
@@ -107,7 +106,7 @@ class ProductService {
       }
 
       final body = {
-        'name': product.title,
+        'title': product.title,
         'subtitle': product.subtitle,
         'rating': product.rating,
         'description': product.description,
@@ -152,7 +151,7 @@ class ProductService {
       }
 
       final body = {
-        'name': product.title,
+        'title': product.title,
         'subtitle': product.subtitle,
         'rating': product.rating,
         'description': product.description,

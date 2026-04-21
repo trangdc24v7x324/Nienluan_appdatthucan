@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
+import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 import 'package:ct484tx_project_trangdc24v7x324/shared/widgets/category_selector.dart';
 import 'package:ct484tx_project_trangdc24v7x324/features/product/widgets/food_list.dart';
@@ -32,6 +33,8 @@ class _HomePageState extends State<HomePage> {
       if (!productProvider.isLoading) {
         productProvider.fetchProducts();
       }
+
+      context.read<ProfileProvider>().loadProfile();
     });
   }
 
@@ -77,6 +80,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final productProvider = context.watch<ProductProvider>();
+    final profileProvider = context.watch<ProfileProvider>();
+    final avatarUrl = profileProvider.profile?.avatarUrl;
 
     final cartCount = cart.items.fold<int>(
       0,
@@ -153,21 +158,38 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   ),
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 6),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, AppRoutes.profile);
-                      },
-                      icon: const Icon(Icons.person_outline),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushNamed(context, AppRoutes.profile);
+                    },
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 6),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child:
+                            avatarUrl != null && avatarUrl.isNotEmpty
+                                ? Image.network(
+                                  avatarUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (_, __, ___) => const Icon(
+                                        Icons.person_outline,
+                                        color: Colors.grey,
+                                      ),
+                                )
+                                : const Icon(
+                                  Icons.person_outline,
+                                  color: Colors.grey,
+                                ),
+                      ),
                     ),
                   ),
                 ],
