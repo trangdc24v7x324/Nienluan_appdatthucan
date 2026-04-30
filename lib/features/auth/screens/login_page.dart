@@ -148,15 +148,13 @@ class _LoginPageState extends State<LoginPage> {
                     Text(
                       'YourFood',
                       style: GoogleFonts.lobster(
-                        fontSize: 42,
-                        color: Colors.white,
-                      ),
+                        fontSize: 42, color: Colors.white),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Đăng nhập để tiếp tục đặt món ngon mỗi ngày',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
+                      style: TextStyle(
                         fontSize: 15,
                         color: Colors.white.withOpacity(0.95),
                         fontWeight: FontWeight.w400,
@@ -182,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                         children: [
                           Text(
                             'Đăng nhập',
-                            style: GoogleFonts.poppins(
+                            style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w700,
                               color: const Color(0xFF2D2D2D),
@@ -191,7 +189,7 @@ class _LoginPageState extends State<LoginPage> {
                           const SizedBox(height: 6),
                           Text(
                             'Nhập thông tin tài khoản của bạn',
-                            style: GoogleFonts.poppins(
+                            style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey.shade600,
                             ),
@@ -287,7 +285,7 @@ class _LoginPageState extends State<LoginPage> {
                                       )
                                       : Text(
                                         'Đăng nhập',
-                                        style: GoogleFonts.poppins(
+                                        style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -305,14 +303,14 @@ class _LoginPageState extends State<LoginPage> {
                       child: RichText(
                         text: TextSpan(
                           text: 'Chưa có tài khoản? ',
-                          style: GoogleFonts.poppins(
+                          style: TextStyle(
                             color: Colors.white.withOpacity(0.92),
                             fontSize: 14,
                           ),
                           children: [
                             TextSpan(
                               text: 'Đăng ký',
-                              style: GoogleFonts.poppins(
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,

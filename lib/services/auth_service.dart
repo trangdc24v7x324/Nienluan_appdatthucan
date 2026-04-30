@@ -36,7 +36,39 @@ class AuthService {
     }
   }
 
-  void logout() {
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      if (!pb.authStore.isValid) {
+        throw Exception('Bạn chưa đăng nhập');
+      }
+
+      final userId = pb.authStore.model?.id;
+      if (userId == null || userId.isEmpty) {
+        throw Exception('Không tìm thấy tài khoản hiện tại');
+      }
+
+      await pb
+          .collection('users')
+          .update(
+            userId,
+            body: {
+              'oldPassword': oldPassword,
+              'password': newPassword,
+              'passwordConfirm': newPassword,
+            },
+          );
+
+      await pb.collection('users').authRefresh();
+    } catch (e) {
+      print('CHANGE PASSWORD ERROR: $e');
+      throw Exception('Đổi mật khẩu thất bại. Vui lòng kiểm tra mật khẩu cũ.');
+    }
+  }
+
+  Future<void> logout() async {
     pb.authStore.clear();
   }
 

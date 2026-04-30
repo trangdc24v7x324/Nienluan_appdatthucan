@@ -1,13 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
+import 'package:ct484tx_project_trangdc24v7x324/features/product/widgets/food_card.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/cart_item_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/features/product/widgets/food_card.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class FoodAvailable extends StatelessWidget {
+  static const double _cardHeight = 240;
+
   final List<ProductModel> favoritedItems;
   final void Function(ProductModel) onFavoriteToggle;
   final String searchQuery;
@@ -21,86 +22,41 @@ class FoodAvailable extends StatelessWidget {
     required this.selectedCategory,
   });
 
-  String normalizeText(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll('á', 'a')
-        .replaceAll('à', 'a')
-        .replaceAll('ả', 'a')
-        .replaceAll('ã', 'a')
-        .replaceAll('ạ', 'a')
-        .replaceAll('ă', 'a')
-        .replaceAll('ắ', 'a')
-        .replaceAll('ằ', 'a')
-        .replaceAll('ẳ', 'a')
-        .replaceAll('ẵ', 'a')
-        .replaceAll('ặ', 'a')
-        .replaceAll('â', 'a')
-        .replaceAll('ấ', 'a')
-        .replaceAll('ầ', 'a')
-        .replaceAll('ẩ', 'a')
-        .replaceAll('ẫ', 'a')
-        .replaceAll('ậ', 'a')
-        .replaceAll('é', 'e')
-        .replaceAll('è', 'e')
-        .replaceAll('ẻ', 'e')
-        .replaceAll('ẽ', 'e')
-        .replaceAll('ẹ', 'e')
-        .replaceAll('ê', 'e')
-        .replaceAll('ế', 'e')
-        .replaceAll('ề', 'e')
-        .replaceAll('ể', 'e')
-        .replaceAll('ễ', 'e')
-        .replaceAll('ệ', 'e')
-        .replaceAll('í', 'i')
-        .replaceAll('ì', 'i')
-        .replaceAll('ỉ', 'i')
-        .replaceAll('ĩ', 'i')
-        .replaceAll('ị', 'i')
-        .replaceAll('ó', 'o')
-        .replaceAll('ò', 'o')
-        .replaceAll('ỏ', 'o')
-        .replaceAll('õ', 'o')
-        .replaceAll('ọ', 'o')
-        .replaceAll('ô', 'o')
-        .replaceAll('ố', 'o')
-        .replaceAll('ồ', 'o')
-        .replaceAll('ổ', 'o')
-        .replaceAll('ỗ', 'o')
-        .replaceAll('ộ', 'o')
-        .replaceAll('ơ', 'o')
-        .replaceAll('ớ', 'o')
-        .replaceAll('ờ', 'o')
-        .replaceAll('ở', 'o')
-        .replaceAll('ỡ', 'o')
-        .replaceAll('ợ', 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ù', 'u')
-        .replaceAll('ủ', 'u')
-        .replaceAll('ũ', 'u')
-        .replaceAll('ụ', 'u')
-        .replaceAll('ư', 'u')
-        .replaceAll('ứ', 'u')
-        .replaceAll('ừ', 'u')
-        .replaceAll('ử', 'u')
-        .replaceAll('ữ', 'u')
-        .replaceAll('ự', 'u')
-        .replaceAll('ý', 'y')
-        .replaceAll('ỳ', 'y')
-        .replaceAll('ỷ', 'y')
-        .replaceAll('ỹ', 'y')
-        .replaceAll('ỵ', 'y')
-        .replaceAll('đ', 'd');
-  }
-
   bool isFavorited(ProductModel product) {
     return favoritedItems.any((item) => item.id == product.id);
+  }
+
+  String _getCategoryTitle(BuildContext context, String slug) {
+    final categories = context.read<ProductProvider>().categories;
+
+    try {
+      return categories.firstWhere((cat) => cat.slug == slug).title;
+    } catch (_) {
+      return slug.isEmpty ? 'Khác' : slug;
+    }
+  }
+
+  String _getCategoryId(BuildContext context, String slug) {
+    final categories = context.read<ProductProvider>().categories;
+
+    try {
+      return categories.firstWhere((cat) => cat.slug == slug).id;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  int _getCrossAxisCount(double width, int itemCount) {
+    if (itemCount == 1) return 1;
+    if (width >= 900) return 4;
+    if (width >= 650) return 3;
+    return 2;
   }
 
   @override
   Widget build(BuildContext context) {
     final productProvider = context.watch<ProductProvider>();
-    final normalizedQuery = normalizeText(searchQuery.trim());
+    final query = searchQuery.toLowerCase().trim();
 
     if (productProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -122,22 +78,18 @@ class FoodAvailable extends StatelessWidget {
 
     final filteredItems =
         productProvider.products.where((item) {
-          final title = normalizeText(item.title);
-          final subtitle = normalizeText(item.subtitle);
-          final description = normalizeText(item.description);
-          final category = normalizeText(item.category);
+          final title = item.title.toLowerCase();
+          final subtitle = item.subtitle.toLowerCase();
+          final description = item.description.toLowerCase();
 
           final matchesSearch =
-              normalizedQuery.isEmpty ||
-              title.contains(normalizedQuery) ||
-              subtitle.contains(normalizedQuery) ||
-              description.contains(normalizedQuery) ||
-              category.contains(normalizedQuery);
+              query.isEmpty ||
+              title.contains(query) ||
+              subtitle.contains(query) ||
+              description.contains(query);
 
           final matchesCategory =
-              selectedCategory == 'all' ||
-              category == normalizeText(selectedCategory) ||
-              category.contains(normalizeText(selectedCategory));
+              selectedCategory == 'all' || item.category == selectedCategory;
 
           return item.isAvailable && matchesSearch && matchesCategory;
         }).toList();
@@ -155,42 +107,57 @@ class FoodAvailable extends StatelessWidget {
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 14),
-      itemCount: filteredItems.length,
-      physics: const BouncingScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: filteredItems.length == 1 ? 1 : 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 12,
-        childAspectRatio: filteredItems.length == 1 ? 1.1 : 0.62,
-      ),
-      itemBuilder: (context, index) {
-        final item = filteredItems[index];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final crossAxisCount = _getCrossAxisCount(width, filteredItems.length);
 
-        return FoodCard(
-          product: item,
-          isFavorited: isFavorited(item),
-          onFavoriteToggle: () => onFavoriteToggle(item),
-          onAddToCart: () {
-            final cart = Provider.of<CartProvider>(context, listen: false);
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(6, 10, 6, 14),
+          itemCount: filteredItems.length,
+          physics: const BouncingScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: _cardHeight,
+          ),
+          itemBuilder: (context, index) {
+            final item = filteredItems[index];
 
-            cart.addItem(
-              CartItem(
-                title: item.title,
-                image: item.image,
-                price: item.price,
-                quantity: 1,
-              ),
-            );
+            return FoodCard(
+              product: item,
+              isFavorited: isFavorited(item),
+              onFavoriteToggle: () => onFavoriteToggle(item),
+              onAddToCart: () {
+                final cart = Provider.of<CartProvider>(context, listen: false);
 
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${item.title} đã thêm vào giỏ hàng'),
-                duration: const Duration(milliseconds: 900),
-                behavior: SnackBarBehavior.floating,
-              ),
+                final categorySlug = item.category;
+                final categoryTitle = _getCategoryTitle(context, categorySlug);
+                final categoryId = _getCategoryId(context, categorySlug);
+
+                cart.addItem(
+                  CartItem(
+                    productId: item.id,
+                    title: item.title,
+                    image: item.image,
+                    price: item.price,
+                    quantity: 1,
+                    categoryId: categoryId,
+                    categoryTitle: categoryTitle,
+                    categorySlug: categorySlug,
+                  ),
+                );
+
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${item.title} đã thêm vào giỏ hàng'),
+                    duration: const Duration(milliseconds: 900),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
             );
           },
         );

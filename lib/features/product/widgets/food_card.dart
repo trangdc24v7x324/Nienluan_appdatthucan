@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
 import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 
@@ -25,19 +26,14 @@ class _FoodCardState extends State<FoodCard> {
   bool _isCartAnimating = false;
 
   Future<void> _handleAddToCart() async {
-    setState(() {
-      _isCartAnimating = true;
-    });
+    setState(() => _isCartAnimating = true);
 
     widget.onAddToCart();
 
     await Future.delayed(const Duration(milliseconds: 180));
 
     if (!mounted) return;
-
-    setState(() {
-      _isCartAnimating = false;
-    });
+    setState(() => _isCartAnimating = false);
   }
 
   String formatPrice(double price) {
@@ -47,17 +43,18 @@ class _FoodCardState extends State<FoodCard> {
     for (int i = 0; i < value.length; i++) {
       buffer.write(value[i]);
       final remaining = value.length - i - 1;
+
       if (remaining > 0 && remaining % 3 == 0) {
         buffer.write('.');
       }
     }
 
-    return '${buffer.toString()}đ';
+    return '${buffer}đ';
   }
 
   Widget _buildImage() {
     if (widget.product.image.isEmpty) {
-      return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+      return const Icon(Icons.fastfood_rounded, size: 44, color: Colors.grey);
     }
 
     final isNetwork =
@@ -68,8 +65,12 @@ class _FoodCardState extends State<FoodCard> {
       return Image.network(
         widget.product.image,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+        errorBuilder: (_, __, ___) {
+          return const Icon(
+            Icons.fastfood_rounded,
+            size: 44,
+            color: Colors.grey,
+          );
         },
       );
     }
@@ -77,128 +78,161 @@ class _FoodCardState extends State<FoodCard> {
     return Image.asset(
       widget.product.image,
       fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+      errorBuilder: (_, __, ___) {
+        return const Icon(Icons.fastfood_rounded, size: 44, color: Colors.grey);
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(15),
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          AppRoutes.product,
-          arguments: widget.product,
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 6,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                child: Center(child: _buildImage()),
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.product.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      widget.product.subtitle,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formatPrice(widget.product.price),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.orange, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          widget.product.rating.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 12.5),
-                        ),
-                        const Spacer(),
-                        AnimatedScale(
-                          scale: _isCartAnimating ? 1.15 : 1.0,
-                          duration: const Duration(milliseconds: 150),
-                          child: InkWell(
-                            onTap: _handleAddToCart,
-                            borderRadius: BorderRadius.circular(20),
-                            child: const Padding(
-                              padding: EdgeInsets.all(2),
-                              child: Icon(
-                                CupertinoIcons.cart_badge_plus,
-                                color: Colors.red,
-                                size: 21,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        InkWell(
-                          onTap: widget.onFavoriteToggle,
-                          borderRadius: BorderRadius.circular(20),
-                          child: Padding(
-                            padding: const EdgeInsets.all(2),
-                            child: Icon(
-                              widget.isFavorited
-                                  ? CupertinoIcons.heart_fill
-                                  : CupertinoIcons.heart,
-                              color:
-                                  widget.isFavorited ? Colors.red : Colors.grey,
-                              size: 21,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.product,
+            arguments: widget.product,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 9),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 95,
+                width: double.infinity,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: _buildImage(),
+                  ),
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 8),
+
+              Text(
+                widget.product.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2E2E2E),
+                ),
+              ),
+
+              const SizedBox(height: 3),
+
+              Text(
+                widget.product.subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.2,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                formatPrice(widget.product.price),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFEF2A39),
+                ),
+              ),
+
+              const SizedBox(height: 7),
+
+              Row(
+                children: [
+                  const Icon(
+                    Icons.star_rounded,
+                    color: Colors.orange,
+                    size: 15,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    widget.product.rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF555555),
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  _ActionIcon(
+                    icon: CupertinoIcons.cart_badge_plus,
+                    color: const Color(0xFFEF2A39),
+                    onTap: _handleAddToCart,
+                    isAnimating: _isCartAnimating,
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  _ActionIcon(
+                    icon:
+                        widget.isFavorited
+                            ? CupertinoIcons.heart_fill
+                            : CupertinoIcons.heart,
+                    color:
+                        widget.isFavorited
+                            ? const Color(0xFFEF2A39)
+                            : Colors.grey,
+                    onTap: widget.onFavoriteToggle,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final bool isAnimating;
+
+  const _ActionIcon({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    this.isAnimating = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: isAnimating ? 1.15 : 1.0,
+      duration: const Duration(milliseconds: 150),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          width: 26,
+          height: 26,
+          child: Icon(icon, color: color, size: 20),
         ),
       ),
     );

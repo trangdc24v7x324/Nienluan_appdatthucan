@@ -2,16 +2,20 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
+import 'package:ct484tx_project_trangdc24v7x324/models/category_model.dart';
 import 'package:ct484tx_project_trangdc24v7x324/services/product_service.dart';
 
 class ProductProvider extends ChangeNotifier {
   final ProductService _productService = ProductService();
 
   List<ProductModel> _products = [];
+  List<CategoryModel> _categories = [];
+
   bool _isLoading = false;
   String? _error;
 
   List<ProductModel> get products => _products;
+  List<CategoryModel> get categories => _categories;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -25,6 +29,34 @@ class ProductProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Không tải được sản phẩm';
       debugPrint('fetchProducts error: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> fetchCategories() async {
+    try {
+      _categories = await _productService.getCategories();
+      notifyListeners();
+    } catch (e) {
+      _error = 'Không tải được danh mục';
+      debugPrint('fetchCategories error: $e');
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchInitialData() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _categories = await _productService.getCategories();
+      _products = await _productService.getProducts();
+    } catch (e) {
+      _error = 'Không tải được dữ liệu';
+      debugPrint('fetchInitialData error: $e');
     }
 
     _isLoading = false;

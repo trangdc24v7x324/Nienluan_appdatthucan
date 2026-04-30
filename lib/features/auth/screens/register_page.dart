@@ -142,7 +142,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         Text(
                           'Tạo tài khoản để bắt đầu đặt món',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
+                          style: TextStyle(
                             fontSize: 15,
                             color: Colors.white.withOpacity(0.95),
                             fontWeight: FontWeight.w400,
@@ -173,7 +173,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       children: [
                         Text(
                           'Đăng ký',
-                          style: GoogleFonts.poppins(
+                          style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: const Color(0xFF2D2D2D),
@@ -182,7 +182,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         const SizedBox(height: 6),
                         Text(
                           'Điền thông tin bên dưới để tạo tài khoản mới',
-                          style: GoogleFonts.poppins(
+                          style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade600,
                           ),
@@ -295,7 +295,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     )
                                     : Text(
                                       'Tạo tài khoản',
-                                      style: GoogleFonts.poppins(
+                                      style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -314,14 +314,14 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: RichText(
                         text: TextSpan(
                           text: 'Đã có tài khoản? ',
-                          style: GoogleFonts.poppins(
+                          style: TextStyle(
                             color: Colors.white.withOpacity(0.92),
                             fontSize: 14,
                           ),
                           children: [
                             TextSpan(
                               text: 'Đăng nhập',
-                              style: GoogleFonts.poppins(
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,

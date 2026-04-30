@@ -21,16 +21,16 @@ class AccountInfoSection extends StatelessWidget {
           Row(
             children: [
               const Expanded(
-                flex: 3,
+                flex: 4,
                 child: Text(
-                  'Họ và tên',
+                  'Tài khoản đăng nhập',
                   style: TextStyle(color: Colors.grey),
                 ),
               ),
               Expanded(
                 flex: 5,
                 child: Text(
-                  profile.username,
+                  profile.email,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),

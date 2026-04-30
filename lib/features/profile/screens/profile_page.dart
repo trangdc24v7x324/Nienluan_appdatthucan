@@ -1,13 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/account_info_section.dart';
 import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/address_section.dart';
 import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/general_info_section.dart';
 import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/payment_methods_section.dart';
 import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/profile_header.dart';
 import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
+import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
 import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -31,8 +31,23 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: const Color(0xff8e1f16),
       body: Consumer<ProfileProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading || provider.profile == null) {
+          if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (provider.profile == null) {
+            return Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRoutes.login,
+                    (route) => false,
+                  );
+                },
+                child: const Text('Đăng nhập lại'),
+              ),
+            );
           }
 
           final profile = provider.profile!;
@@ -110,13 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             AccountInfoSection(
                               profile: profile,
                               onChangePassword: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Chức năng đổi mật khẩu sẽ làm sau',
-                                    ),
-                                  ),
-                                );
+                                _showChangePasswordDialog(context);
                               },
                             ),
 
@@ -133,6 +142,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
                             PaymentMethodsSection(
                               methods: profile.paymentMethods,
+                              isEditing: provider.isEditingPaymentMethods,
+                              onEdit: provider.togglePaymentMethodsEdit,
+                              onSave: (updatedMethods) async {
+                                await provider.updatePaymentMethods(
+                                  updatedMethods,
+                                );
+                              },
                             ),
 
                             GestureDetector(
@@ -178,8 +194,57 @@ class _ProfilePageState extends State<ProfilePage> {
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                                onPressed: () {
-                                  provider.logout(context);
+                                onPressed: () async {
+                                  final shouldLogout = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) {
+                                      return AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        title: Row(
+                                          children: const [
+                                            Icon(
+                                              Icons.warning,
+                                              color: Colors.red,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Xác nhận'),
+                                          ],
+                                        ),
+                                        content: const Text(
+                                          'Bạn có chắc chắn muốn đăng xuất không?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                            child: const Text('Hủy'),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                            ),
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                            child: const Text('Đăng xuất'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+
+                                  if (shouldLogout == true) {
+                                    provider.logout(context);
+                                  }
                                 },
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(
@@ -215,5 +280,144 @@ class _ProfilePageState extends State<ProfilePage> {
         },
       ),
     );
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Consumer<ProfileProvider>(
+          builder: (context, provider, _) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text('Đổi mật khẩu'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: oldPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Mật khẩu cũ'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: newPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Mật khẩu mới',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: confirmPasswordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Xác nhận mật khẩu',
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      provider.isChangingPassword
+                          ? null
+                          : () => Navigator.pop(context),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed:
+                      provider.isChangingPassword
+                          ? null
+                          : () async {
+                            final oldPass = oldPasswordController.text.trim();
+                            final newPass = newPasswordController.text.trim();
+                            final confirmPass =
+                                confirmPasswordController.text.trim();
+
+                            // ✅ Validate đầy đủ
+                            if (oldPass.isEmpty ||
+                                newPass.isEmpty ||
+                                confirmPass.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Vui lòng nhập đầy đủ thông tin',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (newPass.length < 6) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Mật khẩu mới phải ít nhất 6 ký tự',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (newPass != confirmPass) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Mật khẩu xác nhận không khớp'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            try {
+                              await context
+                                  .read<ProfileProvider>()
+                                  .changePassword(
+                                    oldPassword: oldPass,
+                                    newPassword: newPass,
+                                  );
+
+                              Navigator.pop(context);
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Đổi mật khẩu thành công'),
+                                ),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString())),
+                              );
+                            }
+                          },
+                  child:
+                      provider.isChangingPassword
+                          ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text('Lưu'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      oldPasswordController.dispose();
+      newPasswordController.dispose();
+      confirmPasswordController.dispose();
+    });
   }
 }

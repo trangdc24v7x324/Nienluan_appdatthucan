@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:ui';
+
+import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    _timer = Timer(const Duration(seconds:7), () async {
+    _timer = Timer(const Duration(seconds: 7), () async {
       if (!mounted) return;
 
       final isLoggedIn = pb.authStore.isValid;
@@ -85,11 +86,9 @@ class _SplashScreenState extends State<SplashScreen> {
                         Text(
                           'Ăn uống theo cách của bạn',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            textStyle: TextStyle(
-                              fontSize: screenWidth * 0.042,
-                              color: Colors.white.withValues(alpha: 0.95),
-                            ),
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.042,
+                            color: Colors.white.withValues(alpha: 0.95),
                           ),
                         ),
                       ],
@@ -133,14 +132,12 @@ class _SplashScreenState extends State<SplashScreen> {
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              'Hotline 1900 1010',
+                              'Liên hệ 0762 851 111',
                               maxLines: 1,
-                              style: GoogleFonts.poppins(
-                                textStyle: TextStyle(
-                                  fontSize: screenWidth * 0.04,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white.withValues(alpha: 0.95),
-                                ),
+                              style: TextStyle(
+                                fontSize: screenWidth * 0.025,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white.withValues(alpha: 0.95),
                               ),
                             ),
                           ),

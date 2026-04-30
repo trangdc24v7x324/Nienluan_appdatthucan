@@ -35,89 +35,124 @@ class ProfileService {
       throw Exception('Chưa đăng nhập');
     }
 
-    final user = await pb.collection('users').getOne(authUser.id);
-    final userData = user.data;
+    try {
+      final user = await pb.collection('users').getOne(authUser.id);
+      final userData = user.data;
 
-    final avatarFile = userData['avatar'];
-    String? avatarUrl;
+      final avatarFile = userData['avatar'];
+      String? avatarUrl;
 
-    if (avatarFile != null && avatarFile.toString().trim().isNotEmpty) {
-      avatarUrl =
-          '${pb.baseUrl}/api/files/users/${user.id}/$avatarFile?ts=${DateTime.now().millisecondsSinceEpoch}';
-    }
-
-    final addressResult = await pb
-        .collection('addresses')
-        .getFullList(filter: 'user = "${user.id}"', sort: '-created');
-
-    final addresses =
-        addressResult.map((record) {
-          final data = record.data;
-
-          return AddressModel(
-            id: record.id,
-            receiverName: (data['receiverName'] ?? '').toString(),
-            phoneNumber: (data['phoneNumber'] ?? '').toString(),
-            fullAddress: (data['addressLine'] ?? '').toString(),
-            isDefault: data['isDefault'] ?? false,
-          );
-        }).toList();
-
-    final paymentResult = await pb
-        .collection('payment_methods')
-        .getFullList(filter: 'user = "${user.id}"', sort: '-created');
-
-    final paymentMethods =
-        paymentResult.map((record) {
-          final data = record.data;
-
-          final type = (data['type'] ?? '').toString();
-          final displayName = (data['displayName'] ?? '').toString();
-          final provider = (data['provider'] ?? '').toString();
-          final accountNumber = (data['accountNumber'] ?? '').toString();
-
-          String subtitle = '';
-
-          if (provider.isNotEmpty && accountNumber.isNotEmpty) {
-            subtitle = '$provider - $accountNumber';
-          } else if (provider.isNotEmpty) {
-            subtitle = provider;
-          } else if (accountNumber.isNotEmpty) {
-            subtitle = accountNumber;
-          }
-
-          return PaymentMethodModel(
-            id: record.id,
-            title: displayName,
-            subtitle: subtitle,
-            type: type,
-            isDefault: data['isDefault'] ?? false,
-          );
-        }).toList();
-
-    DateTime? parsedDateOfBirth;
-    final rawDateOfBirth = userData['dateOfBirth'];
-
-    if (rawDateOfBirth != null && rawDateOfBirth.toString().trim().isNotEmpty) {
-      try {
-        parsedDateOfBirth = DateTime.parse(rawDateOfBirth.toString());
-      } catch (_) {
-        parsedDateOfBirth = null;
+      if (avatarFile != null && avatarFile.toString().trim().isNotEmpty) {
+        avatarUrl =
+            '${pb.baseUrl}/api/files/users/${user.id}/$avatarFile?ts=${DateTime.now().millisecondsSinceEpoch}';
       }
-    }
 
-    return UserProfileModel(
-      fullName: (userData['fullName'] ?? '').toString(),
-      dateOfBirth: parsedDateOfBirth,
-      gender: (userData['gender'] ?? '').toString(),
-      email: user.getStringValue('email'),
-      phoneNumber: (userData['phoneNumber'] ?? '').toString(),
-      username: (userData['fullName'] ?? '').toString(),
-      passwordMasked: '******',
-      avatarUrl: avatarUrl,
-      addresses: addresses,
-      paymentMethods: paymentMethods,
-    );
+      final addressResult = await pb
+          .collection('addresses')
+          .getFullList(filter: 'user = "${user.id}"', sort: '-created');
+
+      final addresses =
+          addressResult.map((record) {
+            final data = record.data;
+
+            return AddressModel(
+              id: record.id,
+              receiverName: (data['receiverName'] ?? '').toString(),
+              phoneNumber: (data['phoneNumber'] ?? '').toString(),
+              fullAddress: (data['addressLine'] ?? '').toString(),
+              isDefault: data['isDefault'] ?? false,
+            );
+          }).toList();
+
+      final paymentResult = await pb
+          .collection('payment_methods')
+          .getFullList(filter: 'user = "${user.id}"', sort: '-created');
+
+      List<PaymentMethodModel> paymentMethods =
+          paymentResult.map((record) {
+            final data = record.data;
+
+            final type = (data['type'] ?? '').toString();
+            final displayName = (data['displayName'] ?? '').toString();
+            final provider = (data['provider'] ?? '').toString();
+            final accountNumber = (data['accountNumber'] ?? '').toString();
+
+            String subtitle = '';
+
+            if (provider.isNotEmpty && accountNumber.isNotEmpty) {
+              subtitle = '$provider - $accountNumber';
+            } else if (provider.isNotEmpty) {
+              subtitle = provider;
+            } else if (accountNumber.isNotEmpty) {
+              subtitle = accountNumber;
+            }
+
+            return PaymentMethodModel(
+              id: record.id,
+              title: displayName,
+              subtitle: subtitle,
+              type: type,
+              isDefault: data['isDefault'] ?? false,
+            );
+          }).toList();
+
+      if (paymentMethods.isEmpty) {
+        paymentMethods = [
+          PaymentMethodModel(
+            id: 'cash',
+            type: 'cash',
+            title: 'Tiền mặt',
+            subtitle: 'Thanh toán khi nhận hàng',
+            isDefault: true,
+          ),
+          PaymentMethodModel(
+            id: 'momo',
+            type: 'momo',
+            title: 'MoMo',
+            subtitle: 'Ví điện tử MoMo',
+            isDefault: false,
+          ),
+          PaymentMethodModel(
+            id: 'visa',
+            type: 'visa',
+            title: 'Visa',
+            subtitle: 'Thẻ Visa/Mastercard',
+            isDefault: false,
+          ),
+        ];
+      }
+
+      DateTime? parsedDateOfBirth;
+      final rawDateOfBirth = userData['dateOfBirth'];
+
+      if (rawDateOfBirth != null &&
+          rawDateOfBirth.toString().trim().isNotEmpty) {
+        try {
+          parsedDateOfBirth = DateTime.parse(rawDateOfBirth.toString());
+        } catch (_) {
+          parsedDateOfBirth = null;
+        }
+      }
+
+      return UserProfileModel(
+        fullName: (userData['fullName'] ?? '').toString(),
+        dateOfBirth: parsedDateOfBirth,
+        gender: (userData['gender'] ?? '').toString(),
+        email: user.getStringValue('email'),
+        phoneNumber: (userData['phoneNumber'] ?? '').toString(),
+        username: (userData['fullName'] ?? '').toString(),
+        passwordMasked: '******',
+        avatarUrl: avatarUrl,
+        addresses: addresses,
+        paymentMethods: paymentMethods,
+      );
+    } catch (e) {
+      print('FETCH PROFILE ERROR: $e');
+
+      pb.authStore.clear();
+
+      throw Exception('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại');
+    }
   }
 
   Future<void> updateGeneralInfo({
@@ -173,6 +208,36 @@ class ProfileService {
               'addressLine': address.fullAddress,
               'isDefault': address.isDefault,
               'note': '',
+            },
+          );
+    }
+  }
+  Future<void> updatePaymentMethods(List<PaymentMethodModel> methods) async {
+    final authUser = pb.authStore.model;
+
+    if (authUser == null) {
+      throw Exception('Chưa đăng nhập');
+    }
+
+    final oldMethods = await pb
+        .collection('payment_methods')
+        .getFullList(filter: 'user = "${authUser.id}"');
+
+    for (final item in oldMethods) {
+      await pb.collection('payment_methods').delete(item.id);
+    }
+
+    for (final method in methods) {
+      await pb
+          .collection('payment_methods')
+          .create(
+            body: {
+              'user': authUser.id,
+              'type': method.type,
+              'displayName': method.title,
+              'provider': method.subtitle,
+              'accountNumber': '',
+              'isDefault': method.isDefault,
             },
           );
     }

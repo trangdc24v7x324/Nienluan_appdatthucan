@@ -7,11 +7,22 @@ class OrderModel {
   final DateTime orderDate;
   final String status;
 
+  final String receiverName;
+  final String receiverPhone;
+  final String address;
+  final String paymentMethod;
+  final String note;
+
   OrderModel({
     required this.id,
     required this.items,
     required this.totalAmount,
     required this.orderDate,
     required this.status,
+    required this.receiverName,
+    required this.receiverPhone,
+    required this.address,
+    required this.paymentMethod,
+    required this.note,
   });
 }

@@ -354,6 +354,7 @@
 
                             cart.addItem(
                               CartItem(
+                                productId: product.id,
                                 title: title,
                                 image: image,
                                 price: price,
