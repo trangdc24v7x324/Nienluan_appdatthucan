@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
-import 'package:ct484tx_project_trangdc24v7x324/services/auth_service.dart';
+import 'package:CT466_project_trangdc24v7x324/routes/app_routes.dart';
+import 'package:CT466_project_trangdc24v7x324/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

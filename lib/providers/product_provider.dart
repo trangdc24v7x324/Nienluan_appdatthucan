@@ -1,106 +1,276 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/category_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/services/product_service.dart';
+import 'package:CT466_project_trangdc24v7x324/models/category_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/product_model.dart';
+import 'package:CT466_project_trangdc24v7x324/services/product_service.dart';
 
 class ProductProvider extends ChangeNotifier {
   final ProductService _productService = ProductService();
 
-  List<ProductModel> _products = [];
-  List<CategoryModel> _categories = [];
+  final List<ProductModel> _products = [];
+  final List<CategoryModel> _categories = [];
 
   bool _isLoading = false;
-  String? _error;
+  bool _isSaving = false;
 
-  List<ProductModel> get products => _products;
-  List<CategoryModel> get categories => _categories;
+  String _selectedCategorySlug = 'all';
+  String _searchKeyword = '';
+
+  String? _errorMessage;
+
+  List<ProductModel> get products => List.unmodifiable(_products);
+
+  List<CategoryModel> get categories => List.unmodifiable(_categories);
+
   bool get isLoading => _isLoading;
-  String? get error => _error;
 
-  Future<void> fetchProducts() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  bool get isSaving => _isSaving;
 
-    try {
-      _products = await _productService.getProducts();
-    } catch (e) {
-      _error = 'Không tải được sản phẩm';
-      debugPrint('fetchProducts error: $e');
-    }
+  String get selectedCategorySlug => _selectedCategorySlug;
 
-    _isLoading = false;
-    notifyListeners();
+  String get searchKeyword => _searchKeyword;
+
+  String? get errorMessage => _errorMessage;
+
+  List<ProductModel> get availableProducts {
+    return _products.where((product) => product.isAvailable).toList();
   }
 
-  Future<void> fetchCategories() async {
+  List<ProductModel> get filteredProducts {
+    Iterable<ProductModel> result = _products;
+
+    if (_selectedCategorySlug != 'all') {
+      result = result.where(
+        (product) => product.categorySlug == _selectedCategorySlug,
+      );
+    }
+
+    if (_searchKeyword.trim().isNotEmpty) {
+      final keyword = _searchKeyword.toLowerCase().trim();
+
+      result = result.where((product) {
+        return product.title.toLowerCase().contains(keyword) ||
+            product.subtitle.toLowerCase().contains(keyword) ||
+            product.description.toLowerCase().contains(keyword) ||
+            product.categoryTitle.toLowerCase().contains(keyword);
+      });
+    }
+
+    return result.toList();
+  }
+
+  List<ProductModel> get filteredAvailableProducts {
+    return filteredProducts.where((product) => product.isAvailable).toList();
+  }
+
+  Future<void> loadInitialData() async {
+    _setLoading(true);
+    _clearError();
+
     try {
-      _categories = await _productService.getCategories();
-      notifyListeners();
+      final results = await Future.wait([
+        _productService.getCategories(),
+        _productService.getProducts(),
+      ]);
+
+      _categories
+        ..clear()
+        ..addAll(results[0] as List<CategoryModel>);
+
+      _products
+        ..clear()
+        ..addAll(results[1] as List<ProductModel>);
     } catch (e) {
-      _error = 'Không tải được danh mục';
-      debugPrint('fetchCategories error: $e');
-      notifyListeners();
+      _setError('Không thể tải dữ liệu sản phẩm');
+      debugPrint('loadInitialData error: $e');
+    } finally {
+      _setLoading(false);
     }
   }
 
-  Future<void> fetchInitialData() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  Future<void> loadCategories() async {
+    _setLoading(true);
+    _clearError();
 
     try {
-      _categories = await _productService.getCategories();
-      _products = await _productService.getProducts();
-    } catch (e) {
-      _error = 'Không tải được dữ liệu';
-      debugPrint('fetchInitialData error: $e');
-    }
+      final result = await _productService.getCategories();
 
-    _isLoading = false;
-    notifyListeners();
+      _categories
+        ..clear()
+        ..addAll(result);
+    } catch (e) {
+      _setError('Không thể tải danh mục');
+      debugPrint('loadCategories error: $e');
+    } finally {
+      _setLoading(false);
+    }
   }
 
-  Future<void> addProduct(ProductModel product, {File? imageFile}) async {
+  Future<void> loadProducts() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await _productService.getProducts();
+
+      _products
+        ..clear()
+        ..addAll(result);
+    } catch (e) {
+      _setError('Không thể tải sản phẩm');
+      debugPrint('loadProducts error: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<ProductModel?> getProductDetail(String productId) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      return await _productService.getProductById(productId);
+    } catch (e) {
+      _setError('Không thể tải chi tiết sản phẩm');
+      debugPrint('getProductDetail error: $e');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> addProduct(ProductModel product, {File? imageFile}) async {
+    _isSaving = true;
+    _clearError();
+    notifyListeners();
+
     try {
       await _productService.addProduct(product, imageFile: imageFile);
-      await fetchProducts();
+
+      await loadProducts();
+
+      return true;
     } catch (e) {
-      _error = 'Không thêm được sản phẩm';
+      _setError('Thêm sản phẩm thất bại');
       debugPrint('addProduct error: $e');
+      return false;
+    } finally {
+      _isSaving = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  Future<void> updateProduct(
+  Future<bool> updateProduct(
     String id,
     ProductModel product, {
     File? imageFile,
   }) async {
+    _isSaving = true;
+    _clearError();
+    notifyListeners();
+
     try {
       await _productService.updateProduct(id, product, imageFile: imageFile);
-      await fetchProducts();
+
+      await loadProducts();
+
+      return true;
     } catch (e) {
-      _error = 'Không cập nhật được sản phẩm';
+      _setError('Cập nhật sản phẩm thất bại');
       debugPrint('updateProduct error: $e');
+      return false;
+    } finally {
+      _isSaving = false;
       notifyListeners();
-      rethrow;
     }
   }
 
-  Future<void> deleteProduct(String id) async {
+  Future<bool> deleteProduct(String id) async {
+    _isSaving = true;
+    _clearError();
+    notifyListeners();
+
     try {
       await _productService.deleteProduct(id);
-      _products.removeWhere((item) => item.id == id);
-      notifyListeners();
+
+      _products.removeWhere((product) => product.id == id);
+
+      return true;
     } catch (e) {
-      _error = 'Không xóa được sản phẩm';
+      _setError('Xóa sản phẩm thất bại');
       debugPrint('deleteProduct error: $e');
+      return false;
+    } finally {
+      _isSaving = false;
       notifyListeners();
-      rethrow;
     }
+  }
+
+  void selectCategory(String slug) {
+    _selectedCategorySlug = slug;
+    notifyListeners();
+  }
+
+  void clearCategoryFilter() {
+    _selectedCategorySlug = 'all';
+    notifyListeners();
+  }
+
+  void searchProducts(String keyword) {
+    _searchKeyword = keyword;
+    notifyListeners();
+  }
+
+  void clearSearch() {
+    _searchKeyword = '';
+    notifyListeners();
+  }
+
+  ProductModel? findProductById(String id) {
+    try {
+      return _products.firstWhere((product) => product.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  CategoryModel? findCategoryById(String id) {
+    try {
+      return _categories.firstWhere((category) => category.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  CategoryModel? findCategoryBySlug(String slug) {
+    try {
+      return _categories.firstWhere((category) => category.slug == slug);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void clearData() {
+    _products.clear();
+    _categories.clear();
+    _selectedCategorySlug = 'all';
+    _searchKeyword = '';
+    _clearError();
+    notifyListeners();
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void _setError(String message) {
+    _errorMessage = message;
+    notifyListeners();
+  }
+
+  void _clearError() {
+    _errorMessage = null;
   }
 }

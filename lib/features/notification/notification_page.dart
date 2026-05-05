@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/notification_provider.dart';
+
+import 'package:CT466_project_trangdc24v7x324/models/app_notification_model.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/notification_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_colors.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_text.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_card.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -10,10 +17,11 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  String selectedFilter = 'all';
+
   @override
   void initState() {
     super.initState();
-
     Future.microtask(() {
       context.read<NotificationProvider>().loadCustomerNotifications();
     });
@@ -22,44 +30,103 @@ class _NotificationsPageState extends State<NotificationsPage> {
   IconData _getIcon(String type) {
     switch (type) {
       case 'promotion':
-        return Icons.local_offer;
+        return Icons.local_offer_rounded;
       case 'new_product':
-        return Icons.new_releases;
+        return Icons.fastfood_rounded;
+      case 'general':
+        return Icons.campaign_rounded;
       case 'order_success':
-        return Icons.check_circle;
+        return Icons.check_circle_rounded;
       case 'order_confirmed':
-        return Icons.verified;
+        return Icons.verified_rounded;
       case 'order_preparing':
-        return Icons.restaurant;
+        return Icons.restaurant_rounded;
       case 'order_delivering':
-        return Icons.delivery_dining;
+        return Icons.delivery_dining_rounded;
       case 'order_completed':
-        return Icons.done_all;
+        return Icons.done_all_rounded;
       case 'order_cancelled':
-        return Icons.cancel;
+        return Icons.cancel_rounded;
       default:
-        return Icons.notifications;
+        return Icons.notifications_rounded;
     }
   }
 
   Color _getColor(String type) {
     switch (type) {
       case 'promotion':
-        return Colors.red;
+        return const Color(0xFFF97316);
       case 'new_product':
-        return Colors.purple;
+        return const Color(0xFF22C55E);
+      case 'general':
+        return const Color(0xFF2563EB);
       case 'order_success':
       case 'order_confirmed':
       case 'order_completed':
-        return Colors.green;
+        return const Color(0xFF16A34A);
       case 'order_preparing':
-        return Colors.orange;
+        return const Color(0xFFF59E0B);
       case 'order_delivering':
-        return Colors.blue;
+        return const Color(0xFF0284C7);
       case 'order_cancelled':
-        return Colors.grey;
+        return const Color(0xFF64748B);
       default:
-        return Colors.red;
+        return AppColors.primary;
+    }
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'promotion':
+        return 'Khuyến mãi';
+      case 'new_product':
+        return 'Sản phẩm mới';
+      case 'general':
+        return 'Thông báo chung';
+      case 'order_success':
+        return 'Đặt hàng';
+      case 'order_confirmed':
+        return 'Xác nhận đơn';
+      case 'order_preparing':
+        return 'Chuẩn bị đơn';
+      case 'order_delivering':
+        return 'Đang giao';
+      case 'order_completed':
+        return 'Hoàn thành';
+      case 'order_cancelled':
+        return 'Đã hủy';
+      default:
+        return 'Thông báo';
+    }
+  }
+
+  bool _isOrderType(String type) {
+    return type == 'order_success' ||
+        type == 'order_confirmed' ||
+        type == 'order_preparing' ||
+        type == 'order_delivering' ||
+        type == 'order_completed' ||
+        type == 'order_cancelled';
+  }
+
+  List<AppNotificationModel> _filterNotifications(
+    List<AppNotificationModel> notifications,
+  ) {
+    switch (selectedFilter) {
+      case 'unread':
+        return notifications.where((item) => !item.isRead).toList();
+      case 'orders':
+        return notifications.where((item) => _isOrderType(item.type)).toList();
+      case 'promotion':
+        return notifications.where((item) => item.type == 'promotion').toList();
+      case 'new_product':
+        return notifications
+            .where((item) => item.type == 'new_product')
+            .toList();
+      case 'general':
+        return notifications.where((item) => item.type == 'general').toList();
+      default:
+        return notifications;
     }
   }
 
@@ -69,105 +136,294 @@ class _NotificationsPageState extends State<NotificationsPage> {
     if (diff.inMinutes < 1) return 'Vừa xong';
     if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
     if (diff.inHours < 24) return '${diff.inHours} giờ trước';
-    return '${diff.inDays} ngày trước';
+    if (diff.inDays < 7) return '${diff.inDays} ngày trước';
+
+    final day = time.day.toString().padLeft(2, '0');
+    final month = time.month.toString().padLeft(2, '0');
+    return '$day/$month/${time.year}';
+  }
+
+  Future<void> _handleTapNotification(
+    NotificationProvider provider,
+    AppNotificationModel item,
+  ) async {
+    if (!item.isRead) {
+      await provider.markAsRead(item.id);
+    }
+
+    if (!mounted) return;
+
+    if (item.orderId.isNotEmpty && _isOrderType(item.type)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Có thể mở chi tiết đơn hàng từ thông báo này.'),
+        ),
+      );
+    }
+  }
+
+  Widget _buildFilterChips(NotificationProvider provider) {
+    final filters = [
+      _NotificationFilter('all', 'Tất cả', Icons.notifications_rounded),
+      _NotificationFilter(
+        'unread',
+        'Chưa đọc',
+        Icons.mark_email_unread_rounded,
+      ),
+      _NotificationFilter('orders', 'Đơn hàng', Icons.receipt_long_rounded),
+      _NotificationFilter('promotion', 'Khuyến mãi', Icons.local_offer_rounded),
+      _NotificationFilter(
+        'new_product',
+        'Sản phẩm mới',
+        Icons.fastfood_rounded,
+      ),
+      _NotificationFilter('general', 'Chung', Icons.campaign_rounded),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Row(
+        children:
+            filters.map((filter) {
+              final selected = selectedFilter == filter.value;
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  selected: selected,
+                  avatar: Icon(
+                    filter.icon,
+                    size: 17,
+                    color: selected ? Colors.white : AppColors.primary,
+                  ),
+                  label: Text(filter.label),
+                  labelStyle: TextStyle(
+                    color: selected ? Colors.white : AppColors.textDark,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  selectedColor: AppColors.primary,
+                  backgroundColor: Colors.white,
+                  side: BorderSide(
+                    color:
+                        selected ? AppColors.primary : const Color(0xFFE2E8F0),
+                  ),
+                  onSelected: (_) {
+                    setState(() => selectedFilter = filter.value);
+                  },
+                ),
+              );
+            }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTopActions(NotificationProvider provider) {
+    if (provider.notifications.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              provider.hasUnread
+                  ? '${provider.unreadCount} thông báo chưa đọc'
+                  : 'Tất cả thông báo đã đọc',
+              style: AppText.body.copyWith(
+                color: AppColors.textGrey,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (provider.hasUnread)
+            TextButton.icon(
+              onPressed: provider.markAllAsRead,
+              icon: const Icon(Icons.done_all_rounded, size: 18),
+              label: const Text('Đọc tất cả'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+      children: [
+        Icon(
+          Icons.notifications_off_rounded,
+          size: 70,
+          color: AppColors.textGrey.withOpacity(0.45),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppText.body.copyWith(color: AppColors.textGrey),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationItem(
+    NotificationProvider provider,
+    AppNotificationModel item,
+  ) {
+    final color = _getColor(item.type);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => _handleTapNotification(provider, item),
+      child: AppCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(_getIcon(item.type), color: color, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: AppText.productTitle.copyWith(
+                            fontWeight:
+                                item.isRead ? FontWeight.w700 : FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (!item.isRead)
+                        Container(
+                          width: 9,
+                          height: 9,
+                          margin: const EdgeInsets.only(top: 5),
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    item.body,
+                    style: AppText.body.copyWith(
+                      color: AppColors.textGrey,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          _typeLabel(item.type),
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _formatTime(item.created),
+                        style: AppText.body.copyWith(
+                          fontSize: 11,
+                          color: AppColors.textGrey,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text('Thông báo'),
-        backgroundColor: const Color(0xFFEF2A39),
-        foregroundColor: Colors.white,
-      ),
-      body: Consumer<NotificationProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return AppLayout(
+      title: 'Thông báo',
+      showBack: true,
+      child: AppBody(
+        child: Consumer<NotificationProvider>(
+          builder: (context, provider, _) {
+            if (provider.isLoading && provider.notifications.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (provider.notifications.isEmpty) {
-            return const Center(child: Text('Chưa có thông báo nào'));
-          }
+            final filteredNotifications = _filterNotifications(
+              provider.notifications,
+            );
 
-          return RefreshIndicator(
-            onRefresh: provider.loadCustomerNotifications,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: provider.notifications.length,
-              itemBuilder: (context, index) {
-                final item = provider.notifications[index];
-                final color = _getColor(item.type);
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _getIcon(item.type),
-                          color: color,
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
+            return RefreshIndicator(
+              onRefresh: provider.loadCustomerNotifications,
+              child: Column(
+                children: [
+                  _buildFilterChips(provider),
+                  _buildTopActions(provider),
+                  Expanded(
+                    child:
+                        filteredNotifications.isEmpty
+                            ? _buildEmptyState(
+                              provider.notifications.isEmpty
+                                  ? 'Chưa có thông báo nào'
+                                  : 'Không có thông báo phù hợp với bộ lọc này',
+                            )
+                            : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
+                              itemCount: filteredNotifications.length,
+                              separatorBuilder:
+                                  (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final item = filteredNotifications[index];
+                                return _buildNotificationItem(provider, item);
+                              },
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              item.body,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatTime(item.created),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
                   ),
-                );
-              },
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
+}
+
+class _NotificationFilter {
+  final String value;
+  final String label;
+  final IconData icon;
+
+  const _NotificationFilter(this.value, this.label, this.icon);
 }

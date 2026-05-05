@@ -1,20 +1,72 @@
 import 'package:flutter/material.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/cart_item_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/order_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/services/order_service.dart';
+import 'package:CT466_project_trangdc24v7x324/models/cart_item_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/order_model.dart';
+import 'package:CT466_project_trangdc24v7x324/services/order_service.dart';
 
 class OrderProvider extends ChangeNotifier {
   final OrderService _orderService = OrderService();
 
   final List<OrderModel> _orders = [];
-  bool _isLoading = false;
 
-  List<OrderModel> get orders => _orders;
+  OrderModel? _selectedOrder;
+
+  bool _isLoading = false;
+  bool _isPlacingOrder = false;
+  bool _isUpdatingStatus = false;
+
+  String? _errorMessage;
+
+  List<OrderModel> get orders => List.unmodifiable(_orders);
+
+  OrderModel? get selectedOrder => _selectedOrder;
+
   bool get isLoading => _isLoading;
 
+  bool get isPlacingOrder => _isPlacingOrder;
+
+  bool get isUpdatingStatus => _isUpdatingStatus;
+
+  String? get errorMessage => _errorMessage;
+
+  bool get hasOrders => _orders.isNotEmpty;
+
+  List<OrderModel> get activeOrders {
+    return _orders.where((order) => order.isActive).toList();
+  }
+
+  List<OrderModel> get completedOrders {
+    return _orders.where((order) => order.isCompleted).toList();
+  }
+
+  List<OrderModel> get cancelledOrders {
+    return _orders.where((order) => order.isCancelled).toList();
+  }
+
+  int get pendingOrderCount {
+    return _orders.where((order) => order.isActive).length;
+  }
+
+  int get completedOrderCount {
+    return _orders.where((order) => order.isCompleted).length;
+  }
+
+  int get cancelledOrderCount {
+    return _orders.where((order) => order.isCancelled).length;
+  }
+
+  double get completedRevenue {
+    return _orders
+        .where((order) => order.isCompleted)
+        .fold<double>(0, (sum, order) => sum + order.totalAmount);
+  }
+
+  double get totalRevenue {
+    return _orders.fold<double>(0, (sum, order) => sum + order.totalAmount);
+  }
+
   Future<void> loadOrders() async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
+    _clearError();
 
     try {
       final result = await _orderService.fetchMyOrders();
@@ -23,16 +75,16 @@ class OrderProvider extends ChangeNotifier {
         ..clear()
         ..addAll(result);
     } catch (e) {
+      _setError('Không thể tải danh sách đơn hàng');
       debugPrint('loadOrders error: $e');
+    } finally {
+      _setLoading(false);
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
   Future<void> loadAllOrders() async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
+    _clearError();
 
     try {
       final result = await _orderService.fetchAllOrders();
@@ -41,15 +93,35 @@ class OrderProvider extends ChangeNotifier {
         ..clear()
         ..addAll(result);
     } catch (e) {
+      _setError('Không thể tải danh sách đơn hàng');
       debugPrint('loadAllOrders error: $e');
+    } finally {
+      _setLoading(false);
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
-  Future<void> placeOrder(
-    List<CartItem> cartItems,
+  Future<void> loadOrderDetail(String orderId) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      _selectedOrder = await _orderService.fetchOrderDetail(orderId);
+
+      final index = _orders.indexWhere((order) => order.id == orderId);
+
+      if (index != -1 && _selectedOrder != null) {
+        _orders[index] = _selectedOrder!;
+      }
+    } catch (e) {
+      _setError('Không thể tải chi tiết đơn hàng');
+      debugPrint('loadOrderDetail error: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> placeOrder(
+    List<CartItemModel> cartItems,
     double totalAmount, {
     required String receiverName,
     required String receiverPhone,
@@ -57,50 +129,140 @@ class OrderProvider extends ChangeNotifier {
     required String paymentMethod,
     String note = '',
   }) async {
-    if (cartItems.isEmpty) return;
+    if (cartItems.isEmpty) {
+      _setError('Giỏ hàng đang trống');
+      return false;
+    }
 
-    await _orderService.createOrder(
-      items: cartItems,
-      totalAmount: totalAmount,
-      receiverName: receiverName,
-      receiverPhone: receiverPhone,
-      deliveryAddress: address,
-      paymentMethod: paymentMethod,
-      note: note,
-    );
+    _isPlacingOrder = true;
+    _clearError();
+    notifyListeners();
 
-    await loadOrders();
+    try {
+      await _orderService.createOrder(
+        items: cartItems,
+        totalAmount: totalAmount,
+        receiverName: receiverName,
+        receiverPhone: receiverPhone,
+        deliveryAddress: address,
+        paymentMethod: paymentMethod,
+        note: note,
+      );
+
+      await loadOrders();
+
+      return true;
+    } catch (e) {
+      _setError('Đặt hàng thất bại: ${e.toString()}');
+      debugPrint('placeOrder error: $e');
+      return false;
+    } finally {
+      _isPlacingOrder = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> updateOrderStatus({
+  Future<bool> updateOrderStatus({
     required String orderId,
     required String status,
     bool reloadAll = true,
+    String cancelReason = '',
   }) async {
-    await _orderService.updateOrderStatus(orderId: orderId, status: status);
+    _isUpdatingStatus = true;
+    _clearError();
+    notifyListeners();
 
-    if (reloadAll) {
-      await loadAllOrders();
-    } else {
-      await loadOrders();
+    try {
+      await _orderService.updateOrderStatus(
+        orderId: orderId,
+        status: status,
+        cancelReason: cancelReason,
+      );
+
+      if (reloadAll) {
+        await loadAllOrders();
+      } else {
+        await loadOrders();
+      }
+
+      return true;
+    } catch (e) {
+      _setError('Cập nhật trạng thái đơn hàng thất bại');
+      debugPrint('updateOrderStatus error: $e');
+      return false;
+    } finally {
+      _isUpdatingStatus = false;
+      notifyListeners();
     }
   }
-  int get pendingOrderCount {
-    return _orders.where((order) {
-      return order.status == 'placed' ||
-          order.status == 'confirmed' ||
-          order.status == 'preparing' ||
-          order.status == 'delivering';
-    }).length;
+
+  Future<bool> updatePaymentStatus({
+    required String orderId,
+    required String paymentStatus,
+    bool reloadAll = true,
+  }) async {
+    _isUpdatingStatus = true;
+    _clearError();
+    notifyListeners();
+
+    try {
+      await _orderService.updatePaymentStatus(
+        orderId: orderId,
+        paymentStatus: paymentStatus,
+      );
+
+      if (reloadAll) {
+        await loadAllOrders();
+      } else {
+        await loadOrders();
+      }
+
+      return true;
+    } catch (e) {
+      _setError('Cập nhật trạng thái thanh toán thất bại');
+      debugPrint('updatePaymentStatus error: $e');
+      return false;
+    } finally {
+      _isUpdatingStatus = false;
+      notifyListeners();
+    }
   }
 
-  int get completedOrderCount {
-    return _orders.where((order) => order.status == 'completed').length;
+  OrderModel? findOrderById(String orderId) {
+    try {
+      return _orders.firstWhere((order) => order.id == orderId);
+    } catch (_) {
+      return null;
+    }
   }
 
-  double get completedRevenue {
-    return _orders
-        .where((order) => order.status == 'completed')
-        .fold(0, (sum, order) => sum + order.totalAmount);
+  List<OrderModel> filterByStatus(String status) {
+    return _orders.where((order) => order.orderStatus == status).toList();
+  }
+
+  void clearSelectedOrder() {
+    _selectedOrder = null;
+    notifyListeners();
+  }
+
+  void clearOrders() {
+    _orders.clear();
+    _selectedOrder = null;
+    _clearError();
+    notifyListeners();
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void _setError(String message) {
+    _errorMessage = message;
+    notifyListeners();
+  }
+
+  void _clearError() {
+    _errorMessage = null;
   }
 }

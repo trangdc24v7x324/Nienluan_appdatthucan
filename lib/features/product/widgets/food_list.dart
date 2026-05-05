@@ -1,8 +1,8 @@
-import 'package:ct484tx_project_trangdc24v7x324/features/product/widgets/food_card.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/cart_item_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/features/product/widgets/food_card.dart';
+import 'package:CT466_project_trangdc24v7x324/models/cart_item_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/product_model.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/cart_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/product_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -26,26 +26,6 @@ class FoodAvailable extends StatelessWidget {
     return favoritedItems.any((item) => item.id == product.id);
   }
 
-  String _getCategoryTitle(BuildContext context, String slug) {
-    final categories = context.read<ProductProvider>().categories;
-
-    try {
-      return categories.firstWhere((cat) => cat.slug == slug).title;
-    } catch (_) {
-      return slug.isEmpty ? 'Khác' : slug;
-    }
-  }
-
-  String _getCategoryId(BuildContext context, String slug) {
-    final categories = context.read<ProductProvider>().categories;
-
-    try {
-      return categories.firstWhere((cat) => cat.slug == slug).id;
-    } catch (_) {
-      return '';
-    }
-  }
-
   int _getCrossAxisCount(double width, int itemCount) {
     if (itemCount == 1) return 1;
     if (width >= 900) return 4;
@@ -62,10 +42,10 @@ class FoodAvailable extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (productProvider.error != null) {
+    if (productProvider.errorMessage != null) {
       return Center(
         child: Text(
-          productProvider.error!,
+          productProvider.errorMessage!,
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
@@ -89,7 +69,8 @@ class FoodAvailable extends StatelessWidget {
               description.contains(query);
 
           final matchesCategory =
-              selectedCategory == 'all' || item.category == selectedCategory;
+              selectedCategory == 'all' ||
+              item.categorySlug == selectedCategory;
 
           return item.isAvailable && matchesSearch && matchesCategory;
         }).toList();
@@ -130,22 +111,18 @@ class FoodAvailable extends StatelessWidget {
               isFavorited: isFavorited(item),
               onFavoriteToggle: () => onFavoriteToggle(item),
               onAddToCart: () {
-                final cart = Provider.of<CartProvider>(context, listen: false);
-
-                final categorySlug = item.category;
-                final categoryTitle = _getCategoryTitle(context, categorySlug);
-                final categoryId = _getCategoryId(context, categorySlug);
+                final cart = context.read<CartProvider>();
 
                 cart.addItem(
-                  CartItem(
+                  CartItemModel(
                     productId: item.id,
                     title: item.title,
                     image: item.image,
                     price: item.price,
                     quantity: 1,
-                    categoryId: categoryId,
-                    categoryTitle: categoryTitle,
-                    categorySlug: categorySlug,
+                    categoryId: item.categoryId,
+                    categoryTitle: item.categoryTitle,
+                    categorySlug: item.categorySlug,
                   ),
                 );
 

@@ -1,275 +1,303 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
+
+import 'package:CT466_project_trangdc24v7x324/providers/cart_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/routes/app_routes.dart';
+
+// DESIGN SYSTEM
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_colors.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_text.dart';
+
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_card.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
 
   String formatPrice(double price) {
-    final int value = price.round();
-    final String text = value.toString();
-    final StringBuffer result = StringBuffer();
+    final text = price.round().toString();
+    final result = StringBuffer();
 
     for (int i = 0; i < text.length; i++) {
-      final int positionFromEnd = text.length - i;
+      final positionFromEnd = text.length - i;
       result.write(text[i]);
       if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
         result.write('.');
       }
     }
 
-    return '${result.toString()}đ';
+    return '${result}đ';
   }
 
-  Widget _buildCartImage(String image) {
+  @override
+  Widget build(BuildContext context) {
+    final cart = context.watch<CartProvider>();
+
+    return AppLayout(
+      title: 'Đơn hàng của bạn',
+      showBack: true,
+      child: AppBody(
+        child:
+            cart.items.isEmpty
+                ? const _EmptyCart()
+                : Column(
+                  children: [
+                    Expanded(
+                      child: ListView.separated(
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+                        itemCount: cart.items.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final item = cart.items[index];
+
+                          return _CartItemCard(
+                            title: item.title,
+                            image: item.image,
+                            price: formatPrice(item.price),
+                            subtotal: formatPrice(item.price * item.quantity),
+                            quantity: item.quantity,
+                            onDecrease: () => cart.decreaseQty(item),
+                            onIncrease: () => cart.increaseQty(item),
+                          );
+                        },
+                      ),
+                    ),
+
+                    _CheckoutBox(
+                      total: formatPrice(cart.totalPrice),
+                      onCheckout: () {
+                        Navigator.pushNamed(context, AppRoutes.payment);
+                      },
+                    ),
+                  ],
+                ),
+      ),
+    );
+  }
+}
+
+class _EmptyCart extends StatelessWidget {
+  const _EmptyCart();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text('Giỏ hàng đang trống', style: AppText.body));
+  }
+}
+
+class _CartItemCard extends StatelessWidget {
+  final String title;
+  final String image;
+  final String price;
+  final String subtotal;
+  final int quantity;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
+
+  const _CartItemCard({
+    required this.title,
+    required this.image,
+    required this.price,
+    required this.subtotal,
+    required this.quantity,
+    required this.onDecrease,
+    required this.onIncrease,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Row(
+        children: [
+          _CartImage(image: image),
+          const SizedBox(width: 12),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppText.productTitle),
+                const SizedBox(height: 6),
+                Text(price, style: AppText.price),
+                const SizedBox(height: 8),
+
+                _QuantityControl(
+                  quantity: quantity,
+                  onDecrease: onDecrease,
+                  onIncrease: onIncrease,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'Tạm tính',
+                style: TextStyle(fontSize: 12, color: AppColors.textGrey),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtotal,
+                style: AppText.productTitle.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CartImage extends StatelessWidget {
+  final String image;
+
+  const _CartImage({required this.image});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 72,
+      height: 72,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: _FoodImage(image: image),
+    );
+  }
+}
+
+class _FoodImage extends StatelessWidget {
+  final String image;
+
+  const _FoodImage({required this.image});
+
+  @override
+  Widget build(BuildContext context) {
     if (image.isEmpty) {
-      return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
+      return const Icon(Icons.fastfood, color: Colors.grey);
     }
 
     final isNetwork =
         image.startsWith('http://') || image.startsWith('https://');
 
-    if (isNetwork) {
-      return Image.network(
-        image,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
-        },
-      );
-    }
-
-    return Image.asset(
-      image,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return const Icon(Icons.fastfood, size: 40, color: Colors.grey);
-      },
-    );
+    return isNetwork
+        ? Image.network(
+          image,
+          fit: BoxFit.contain,
+          errorBuilder:
+              (_, __, ___) => const Icon(Icons.fastfood, color: Colors.grey),
+        )
+        : Image.asset(
+          image,
+          fit: BoxFit.contain,
+          errorBuilder:
+              (_, __, ___) => const Icon(Icons.fastfood, color: Colors.grey),
+        );
   }
+}
+
+class _QuantityControl extends StatelessWidget {
+  final int quantity;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
+
+  const _QuantityControl({
+    required this.quantity,
+    required this.onDecrease,
+    required this.onIncrease,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final cart = Provider.of<CartProvider>(context);
+    return Row(
+      children: [
+        _QtyButton(icon: Icons.remove, onTap: onDecrease),
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F7F7),
-        elevation: 0,
-        centerTitle: false,
-        title: const Text(
-          'Đơn hàng của bạn',
-          style: TextStyle(
-            color: Color(0xFF3C2F2F),
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
+        SizedBox(
+          width: 38,
+          child: Text(
+            '$quantity',
+            textAlign: TextAlign.center,
+            style: AppText.productTitle,
           ),
         ),
-        iconTheme: const IconThemeData(color: Color(0xFF3C2F2F)),
+
+        _QtyButton(icon: Icons.add, onTap: onIncrease),
+      ],
+    );
+  }
+}
+
+class _CheckoutBox extends StatelessWidget {
+  final String total;
+  final VoidCallback onCheckout;
+
+  const _CheckoutBox({required this.total, required this.onCheckout});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, -2),
+          ),
+        ],
       ),
-      body:
-          cart.items.isEmpty
-              ? const Center(
-                child: Text(
-                  'Giỏ hàng đang trống',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Text('Tổng tiền', style: AppText.productTitle),
+                const Spacer(),
+                Text(total, style: AppText.total),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-              )
-              : Column(
-                children: [
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                      itemCount: cart.items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = cart.items[index];
-
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 8,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFDF2F2),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: _buildCartImage(item.image),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.title,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF3C2F2F),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      formatPrice(item.price),
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFFEF2A39),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        _QtyButton(
-                                          icon: Icons.remove,
-                                          onTap: () => cart.decreaseQty(item),
-                                        ),
-                                        Container(
-                                          width: 38,
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            item.quantity.toString(),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                        _QtyButton(
-                                          icon: Icons.add,
-                                          onTap: () => cart.increaseQty(item),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text(
-                                    'Tạm tính',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    formatPrice(item.price * item.quantity),
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF3C2F2F),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      top: false,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              const Text(
-                                'Tổng tiền',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF3C2F2F),
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                formatPrice(cart.totalPrice),
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFEF2A39),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFEF2A39),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              onPressed: () {
-                                Navigator.pushNamed(context, AppRoutes.payment);
-                              },
-                              child: const Text(
-                                'Thanh toán',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                onPressed: onCheckout,
+                child: const Text(
+                  'Thanh toán',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -289,10 +317,10 @@ class _QtyButton extends StatelessWidget {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: const Color(0xFFF3F3F3),
+          color: AppColors.bgLight,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, size: 18, color: const Color(0xFF3C2F2F)),
+        child: Icon(icon, size: 18, color: AppColors.textDark),
       ),
     );
   }

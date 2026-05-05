@@ -1,13 +1,19 @@
-import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/account_info_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/address_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/general_info_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/payment_methods_section.dart';
-import 'package:ct484tx_project_trangdc24v7x324/features/profile/widgets/profile_header.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import 'package:CT466_project_trangdc24v7x324/features/profile/widgets/account_info_section.dart';
+import 'package:CT466_project_trangdc24v7x324/features/profile/widgets/address_section.dart';
+import 'package:CT466_project_trangdc24v7x324/features/profile/widgets/general_info_section.dart';
+import 'package:CT466_project_trangdc24v7x324/features/profile/widgets/payment_methods_section.dart';
+import 'package:CT466_project_trangdc24v7x324/features/profile/widgets/profile_header.dart';
+
+import 'package:CT466_project_trangdc24v7x324/providers/profile_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/routes/app_routes.dart';
+
+// DESIGN SYSTEM
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_colors.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -27,11 +33,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xff8e1f16),
-      body: Consumer<ProfileProvider>(
+    return AppLayout(
+      title: 'Tài khoản',
+      showBack: true,
+
+      child: Consumer<ProfileProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) {
+          if (provider.isLoading && provider.profile == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -51,234 +59,167 @@ class _ProfilePageState extends State<ProfilePage> {
           }
 
           final profile = provider.profile!;
-          context.watch<OrderProvider>().orders.take(3).toList();
 
-          return SafeArea(
-            child: Column(
+          return AppBody(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const Spacer(),
-                    ],
-                  ),
+                ProfileHeader(
+                  name: profile.fullName,
+                  avatarUrl: profile.avatarUrl,
                 ),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(top: 28),
-                    padding: const EdgeInsets.fromLTRB(16, 54, 16, 20),
-                    decoration: const BoxDecoration(
-                      color: Color(0xfff7f7f7),
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(32),
+
+                const SizedBox(height: 16),
+
+                GeneralInfoSection(
+                  profile: profile,
+                  isEditing: provider.isEditingGeneralInfo,
+                  onEdit: provider.toggleGeneralInfoEdit,
+                  onSave: ({
+                    required fullName,
+                    required email,
+                    required phoneNumber,
+                    required gender,
+                    required dateOfBirth,
+                  }) async {
+                    final success = await provider.updateGeneralInfo(
+                      fullName: fullName,
+                      email: email,
+                      phoneNumber: phoneNumber,
+                      gender: gender,
+                      dateOfBirth: dateOfBirth,
+                    );
+
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Cập nhật thông tin thành công'
+                              : provider.errorMessage ??
+                                  'Cập nhật thông tin thất bại',
+                        ),
                       ),
-                    ),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          top: -110,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: ProfileHeader(
-                              name: profile.fullName,
-                              email: profile.email,
-                              avatarUrl: profile.avatarUrl,
-                            ),
-                          ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                AccountInfoSection(
+                  profile: profile,
+                  onChangePassword: () {
+                    _showChangePasswordDialog(context);
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                AddressSection(
+                  addresses: profile.addresses,
+                  isEditing: provider.isEditingAddress,
+                  onEdit: provider.toggleAddressEdit,
+                  onSave: (updatedAddresses) async {
+                    final success = await provider.updateAddresses(
+                      updatedAddresses,
+                    );
+
+                    if (!context.mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Cập nhật địa chỉ thành công'
+                              : provider.errorMessage ??
+                                  'Cập nhật địa chỉ thất bại',
                         ),
-                        ListView(
-                          children: [
-                            const SizedBox(height: 30),
+                      ),
+                    );
+                  },
+                ),
 
-                            GeneralInfoSection(
-                              profile: profile,
-                              isEditing: provider.isEditingGeneralInfo,
-                              onEdit: provider.toggleGeneralInfoEdit,
-                              onSave: ({
-                                required fullName,
-                                required email,
-                                required phoneNumber,
-                                required gender,
-                                required dateOfBirth,
-                              }) {
-                                provider.updateGeneralInfo(
-                                  fullName: fullName,
-                                  email: email,
-                                  phoneNumber: phoneNumber,
-                                  gender: gender,
-                                  dateOfBirth: dateOfBirth,
-                                );
-                              },
-                            ),
+                const SizedBox(height: 16),
 
-                            AccountInfoSection(
-                              profile: profile,
-                              onChangePassword: () {
-                                _showChangePasswordDialog(context);
-                              },
-                            ),
+                PaymentMethodsSection(
+                  methods: profile.paymentMethods,
+                  isEditing: provider.isEditingPaymentMethods,
+                  onEdit: provider.togglePaymentMethodsEdit,
+                  onSave: (updatedMethods) async {
+                    final success = await provider.updatePaymentMethods(
+                      updatedMethods,
+                    );
 
-                            AddressSection(
-                              addresses: profile.addresses,
-                              isEditing: provider.isEditingAddress,
-                              onEdit: provider.toggleAddressEdit,
-                              onSave: (updatedAddresses) async {
-                                await provider.updateAddresses(
-                                  updatedAddresses,
-                                );
-                              },
-                            ),
+                    if (!context.mounted) return;
 
-                            PaymentMethodsSection(
-                              methods: profile.paymentMethods,
-                              isEditing: provider.isEditingPaymentMethods,
-                              onEdit: provider.togglePaymentMethodsEdit,
-                              onSave: (updatedMethods) async {
-                                await provider.updatePaymentMethods(
-                                  updatedMethods,
-                                );
-                              },
-                            ),
-
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.pushNamed(context, AppRoutes.orders);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                margin: const EdgeInsets.only(top: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(18),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black12,
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.receipt_long_outlined,
-                                      color: Color(0xFFEF2A39),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        'Lịch sử mua hàng',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Icon(Icons.chevron_right),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed: () async {
-                                  final shouldLogout = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) {
-                                      return AlertDialog(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                        ),
-                                        title: Row(
-                                          children: const [
-                                            Icon(
-                                              Icons.warning,
-                                              color: Colors.red,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Text('Xác nhận'),
-                                          ],
-                                        ),
-                                        content: const Text(
-                                          'Bạn có chắc chắn muốn đăng xuất không?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed:
-                                                () => Navigator.pop(
-                                                  context,
-                                                  false,
-                                                ),
-                                            child: const Text('Hủy'),
-                                          ),
-                                          ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red,
-                                            ),
-                                            onPressed:
-                                                () => Navigator.pop(
-                                                  context,
-                                                  true,
-                                                ),
-                                            child: const Text('Đăng xuất'),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-
-                                  if (shouldLogout == true) {
-                                    provider.logout(context);
-                                  }
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: Color(0xFF8E1F16),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Đăng xuất',
-                                  style: TextStyle(
-                                    color: Color(0xFF8E1F16),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 12),
-                          ],
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Cập nhật phương thức thanh toán thành công'
+                              : provider.errorMessage ??
+                                  'Cập nhật phương thức thanh toán thất bại',
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 18),
+
+                _ActionTile(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Lịch sử mua hàng',
+                  onTap: () {
+                    Navigator.pushNamed(context, AppRoutes.orders);
+                  },
+                ),
+
+                const SizedBox(height: 18),
+
+                _LogoutButton(
+                  onPressed: () async {
+                    final shouldLogout = await _showLogoutDialog();
+
+                    if (shouldLogout == true) {
+                      await provider.logout(context);
+                    }
+                  },
                 ),
               ],
             ),
           );
         },
       ),
+    );
+  }
+
+  Future<bool?> _showLogoutDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('Đăng xuất'),
+          content: const Text('Bạn có chắc muốn đăng xuất không?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Đăng xuất'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -289,13 +230,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
     showDialog(
       context: context,
-      barrierDismissible: false,
       builder: (context) {
         return Consumer<ProfileProvider>(
           builder: (context, provider, _) {
             return AlertDialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
               ),
               title: const Text('Đổi mật khẩu'),
               content: Column(
@@ -333,6 +273,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: const Text('Hủy'),
                 ),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
                   onPressed:
                       provider.isChangingPassword
                           ? null
@@ -342,14 +285,13 @@ class _ProfilePageState extends State<ProfilePage> {
                             final confirmPass =
                                 confirmPasswordController.text.trim();
 
-                            // ✅ Validate đầy đủ
                             if (oldPass.isEmpty ||
                                 newPass.isEmpty ||
                                 confirmPass.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                    'Vui lòng nhập đầy đủ thông tin',
+                                    'Vui lòng nhập đầy đủ mật khẩu',
                                   ),
                                 ),
                               );
@@ -360,7 +302,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
-                                    'Mật khẩu mới phải ít nhất 6 ký tự',
+                                    'Mật khẩu mới phải có ít nhất 6 ký tự',
                                   ),
                                 ),
                               );
@@ -370,7 +312,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             if (newPass != confirmPass) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Mật khẩu xác nhận không khớp'),
+                                  content: Text('Xác nhận mật khẩu không khớp'),
                                 ),
                               );
                               return;
@@ -384,6 +326,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                     newPassword: newPass,
                                   );
 
+                              if (!context.mounted) return;
                               Navigator.pop(context);
 
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -414,10 +357,73 @@ class _ProfilePageState extends State<ProfilePage> {
           },
         );
       },
-    ).then((_) {
-      oldPasswordController.dispose();
-      newPasswordController.dispose();
-      confirmPasswordController.dispose();
-    });
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const _ActionTile({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LogoutButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _LogoutButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.logout_rounded),
+        label: const Text('Đăng xuất'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 144, 12, 2), // màu nền nút
+          foregroundColor: Colors.white, // màu chữ và icon
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
   }
 }

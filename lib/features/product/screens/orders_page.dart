@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/utils/order_status_helper.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/order_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/utils/order_status_helper.dart';
+
+// DESIGN SYSTEM
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_colors.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_text.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_card.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -15,330 +22,258 @@ class _OrdersPageState extends State<OrdersPage> {
   @override
   void initState() {
     super.initState();
-
-    Future.microtask(() {
-      context.read<OrderProvider>().loadOrders();
-    });
+    Future.microtask(() => context.read<OrderProvider>().loadOrders());
   }
 
   String formatPrice(double price) {
-    final int value = price.round();
-    final String text = value.toString();
-    final StringBuffer result = StringBuffer();
+    final text = price.round().toString();
+    final result = StringBuffer();
 
     for (int i = 0; i < text.length; i++) {
-      final int positionFromEnd = text.length - i;
+      final positionFromEnd = text.length - i;
       result.write(text[i]);
+
       if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
         result.write('.');
       }
     }
 
-    return '${result.toString()}đ';
+    return '${result}đ';
   }
 
   @override
   Widget build(BuildContext context) {
-    final orderProvider = context.watch<OrderProvider>();
-    final orders = orderProvider.orders;
+    final provider = context.watch<OrderProvider>();
+    final orders = provider.orders;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F7F7),
-        elevation: 0,
-        centerTitle: false,
-        title: const Text(
-          'Lịch sử mua hàng',
-          style: TextStyle(
-            color: Color(0xFF3C2F2F),
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Color(0xFF3C2F2F)),
-      ),
-      body:
-          orderProvider.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : orders.isEmpty
-              ? const Center(
-                child: Text(
-                  'Chưa có đơn hàng nào',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
+    return AppLayout(
+      title: 'Lịch sử mua hàng',
+      showBack: true,
+
+      child: AppBody(
+        child:
+            provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : orders.isEmpty
+                ? const _EmptyOrders()
+                : RefreshIndicator(
+                  onRefresh: () {
+                    return context.read<OrderProvider>().loadOrders();
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+                    itemCount: orders.length,
+                    itemBuilder: (context, index) {
+                      final order = orders[index];
+
+                      return _OrderCard(
+                        orderId: order.id,
+                        date:
+                            '${order.orderDate.day}/${order.orderDate.month}/${order.orderDate.year}',
+                        statusText: OrderStatusHelper.getText(order.status),
+                        statusColor: OrderStatusHelper.getColor(order.status),
+                        total: formatPrice(order.totalAmount),
+                        receiver:
+                            '${order.receiverName} - ${order.receiverPhone}',
+                        address: order.address,
+                        payment: order.paymentMethod,
+                        note: order.note,
+                        items:
+                            order.items
+                                .map(
+                                  (item) => _OrderItemView(
+                                    title: item.productName,
+                                    quantity: item.quantity,
+                                    total: formatPrice(item.subtotal),
+                                  ),
+                                )
+                                .toList(),
+                      );
+                    },
                   ),
                 ),
-              )
-              : RefreshIndicator(
-                onRefresh: () => context.read<OrderProvider>().loadOrders(),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: orders.length,
-                  itemBuilder: (context, index) {
-                    final order = orders[index];
-                    final statusColor = OrderStatusHelper.getColor(
-                      order.status,
-                    );
-                    final statusText = OrderStatusHelper.getText(order.status);
+      ),
+    );
+  }
+}
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Đơn hàng #${order.id}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 17,
-                              color: Color(0xFF3C2F2F),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
+class _EmptyOrders extends StatelessWidget {
+  const _EmptyOrders();
 
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today_outlined,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Ngày đặt: ${order.orderDate.day}/${order.orderDate.month}/${order.orderDate.year}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF555555),
-                                ),
-                              ),
-                            ],
-                          ),
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        'Chưa có đơn hàng nào',
+        style: AppText.body.copyWith(color: AppColors.textGrey),
+      ),
+    );
+  }
+}
 
-                          const SizedBox(height: 8),
+class _OrderCard extends StatelessWidget {
+  final String orderId;
+  final String date;
+  final String statusText;
+  final Color statusColor;
+  final String total;
+  final String receiver;
+  final String address;
+  final String payment;
+  final String note;
+  final List<_OrderItemView> items;
 
-                          Row(
-                            children: [
-                              const Text(
-                                'Trạng thái: ',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF555555),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  statusText,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+  const _OrderCard({
+    required this.orderId,
+    required this.date,
+    required this.statusText,
+    required this.statusColor,
+    required this.total,
+    required this.receiver,
+    required this.address,
+    required this.payment,
+    required this.note,
+    required this.items,
+  });
 
-                          const SizedBox(height: 8),
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Đơn hàng #$orderId', style: AppText.productTitle),
 
-                          Row(
-                            children: [
-                              const Text(
-                                'Tổng tiền: ',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF555555),
-                                ),
-                              ),
-                              Text(
-                                formatPrice(order.totalAmount),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFEF2A39),
-                                ),
-                              ),
-                            ],
-                          ),
+          const SizedBox(height: 12),
 
-                          const SizedBox(height: 8),
+          _InfoRow(
+            icon: Icons.calendar_today_outlined,
+            text: 'Ngày đặt: $date',
+          ),
 
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.person_outline,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  '${order.receiverName} - ${order.receiverPhone}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF555555),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+          const SizedBox(height: 8),
 
-                          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text('Trạng thái: ', style: AppText.body),
+              _StatusBadge(text: statusText, color: statusColor),
+            ],
+          ),
 
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.location_on_outlined,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Địa chỉ: ${order.address}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF555555),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+          const SizedBox(height: 8),
 
-                          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text('Tổng tiền: ', style: AppText.body),
+              Text(total, style: AppText.price),
+            ],
+          ),
 
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.payment_outlined,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Thanh toán: ${order.paymentMethod}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF555555),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+          const SizedBox(height: 8),
+          _InfoRow(icon: Icons.person_outline, text: receiver),
 
-                          if (order.note.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(
-                                  Icons.note_alt_outlined,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Ghi chú: ${order.note}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Color(0xFF555555),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+          const SizedBox(height: 8),
+          _InfoRow(icon: Icons.location_on_outlined, text: 'Địa chỉ: $address'),
 
-                          const SizedBox(height: 14),
-                          const Divider(),
-                          const SizedBox(height: 8),
+          const SizedBox(height: 8),
+          _InfoRow(icon: Icons.payment_outlined, text: 'Thanh toán: $payment'),
 
-                          const Text(
-                            'Món đã đặt',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: Color(0xFF3C2F2F),
-                            ),
-                          ),
+          if (note.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _InfoRow(icon: Icons.note_alt_outlined, text: 'Ghi chú: $note'),
+          ],
 
-                          const SizedBox(height: 10),
+          const SizedBox(height: 14),
+          const Divider(),
+          const SizedBox(height: 8),
 
-                          ...order.items.map(
-                            (item) => Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF9F9F9),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.title,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF3C2F2F),
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    'x${item.quantity}',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    formatPrice(item.price * item.quantity),
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF555555),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
+          Text('Món đã đặt', style: AppText.productTitle),
+
+          const SizedBox(height: 10),
+          ...items,
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: AppColors.textGrey),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text, style: AppText.body)),
+      ],
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String text;
+  final Color color;
+
+  const _StatusBadge({required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderItemView extends StatelessWidget {
+  final String title;
+  final int quantity;
+  final String total;
+
+  const _OrderItemView({
+    required this.title,
+    required this.quantity,
+    required this.total,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.bgLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: Text(title, style: AppText.productTitle)),
+          Text(
+            'x$quantity',
+            style: AppText.body.copyWith(color: AppColors.textGrey),
+          ),
+          const SizedBox(width: 12),
+          Text(total, style: AppText.body),
+        ],
+      ),
     );
   }
 }

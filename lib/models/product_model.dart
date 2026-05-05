@@ -7,58 +7,64 @@ class ProductModel {
   final String description;
   final String deliveryTime;
   final double price;
-  final String category;
-  final bool isAvailable;
 
-  ProductModel({
+  /// categoryId là id relation trong PocketBase.
+  final String categoryId;
+
+  /// categoryTitle/categorySlug lấy từ expand category.
+  final String categoryTitle;
+  final String categorySlug;
+
+  final bool isAvailable;
+  final DateTime? created;
+  final DateTime? updated;
+
+  const ProductModel({
     required this.id,
     required this.title,
-    required this.subtitle,
-    required this.rating,
-    required this.image,
-    required this.description,
-    required this.deliveryTime,
-    required this.price,
-    required this.category,
-    required this.isAvailable,
+    this.subtitle = '',
+    this.rating = 0,
+    this.image = '',
+    this.description = '',
+    this.deliveryTime = '',
+    this.price = 0,
+    this.categoryId = '',
+    this.categoryTitle = 'Khác',
+    this.categorySlug = 'khac',
+    this.isAvailable = true,
+    this.created,
+    this.updated,
   });
-
-  static String normalizeCategory(dynamic value) {
-    final raw = value?.toString().toLowerCase().trim() ?? '';
-
-    if (raw == 'combo' || raw == 'combos') return 'combos';
-    if (raw == 'food' || raw == 'món ăn' || raw == 'mon an') return 'food';
-    if (raw == 'drink' || raw == 'nước uống' || raw == 'nuoc uong')
-      return 'drink';
-
-    return raw;
-  }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
       id: json['id']?.toString() ?? '',
-      title: json['name']?.toString() ?? json['title']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
       subtitle: json['subtitle']?.toString() ?? '',
-      rating: (json['rating'] ?? 0).toDouble(),
+      rating: _toDouble(json['rating']),
       image: json['image']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       deliveryTime: json['deliveryTime']?.toString() ?? '',
-      price: (json['price'] ?? 0).toDouble(),
-      category: normalizeCategory(json['category']),
-      isAvailable: json['isAvailable'] ?? true,
+      price: _toDouble(json['price']),
+      categoryId: json['category']?.toString() ?? '',
+      categoryTitle: json['categoryTitle']?.toString() ?? 'Khác',
+      categorySlug: json['categorySlug']?.toString() ?? 'khac',
+      isAvailable: json['isAvailable'] != false,
+      created: DateTime.tryParse(json['created']?.toString() ?? ''),
+      updated: DateTime.tryParse(json['updated']?.toString() ?? ''),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'name': title,
+      'title': title,
       'subtitle': subtitle,
       'rating': rating,
       'image': image,
       'description': description,
       'deliveryTime': deliveryTime,
       'price': price,
-      'category': category,
+      'category': categoryId,
       'isAvailable': isAvailable,
     };
   }
@@ -72,8 +78,12 @@ class ProductModel {
     String? description,
     String? deliveryTime,
     double? price,
-    String? category,
+    String? categoryId,
+    String? categoryTitle,
+    String? categorySlug,
     bool? isAvailable,
+    DateTime? created,
+    DateTime? updated,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -84,8 +94,18 @@ class ProductModel {
       description: description ?? this.description,
       deliveryTime: deliveryTime ?? this.deliveryTime,
       price: price ?? this.price,
-      category: category ?? this.category,
+      categoryId: categoryId ?? this.categoryId,
+      categoryTitle: categoryTitle ?? this.categoryTitle,
+      categorySlug: categorySlug ?? this.categorySlug,
       isAvailable: isAvailable ?? this.isAvailable,
+      created: created ?? this.created,
+      updated: updated ?? this.updated,
     );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
   }
 }

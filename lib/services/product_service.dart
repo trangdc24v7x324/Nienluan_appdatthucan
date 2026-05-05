@@ -1,14 +1,12 @@
 import 'dart:io';
 
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/category_model.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/models/category_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/product_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ProductService {
-  // ================= CATEGORY =================
-
   Future<List<CategoryModel>> getCategories() async {
     try {
       final records = await pb
@@ -16,16 +14,12 @@ class ProductService {
           .getFullList(sort: 'sortOrder', filter: 'isActive = true');
 
       return records.map((record) {
-        final data = record.toJson();
-
-        return CategoryModel(
-          id: record.id,
-          title: (data['title'] ?? '').toString(),
-          slug: (data['slug'] ?? '').toString(),
-          icon: (data['icon'] ?? '').toString(),
-          sortOrder: ((data['sortOrder'] ?? 0) as num).toInt(),
-          isActive: data['isActive'] ?? true,
-        );
+        return CategoryModel.fromJson({
+          'id': record.id,
+          ...record.data,
+          'created': record.created,
+          'updated': record.updated,
+        });
       }).toList();
     } catch (e) {
       debugPrint('GET CATEGORIES ERROR: $e');
@@ -33,90 +27,42 @@ class ProductService {
     }
   }
 
-  // ================= PRODUCTS =================
-
   Future<List<ProductModel>> getProducts() async {
     try {
       final records = await pb
           .collection('products')
           .getFullList(sort: '-created', expand: 'category');
 
-      return records.map((record) {
-        final data = record.toJson();
-
-        double parseDouble(dynamic value) {
-          if (value == null) return 0;
-          if (value is num) return value.toDouble();
-          return double.tryParse(value.toString()) ?? 0;
-        }
-
-        bool parseBool(dynamic value) {
-          if (value is bool) return value;
-          if (value is num) return value != 0;
-          final text = value.toString().toLowerCase().trim();
-          return text == 'true' || text == '1';
-        }
-
-        final categoryData = _getCategoryData(record);
-
-        return ProductModel(
-          id: record.id,
-          title: (data['title'] ?? '').toString(),
-          subtitle: (data['subtitle'] ?? '').toString(),
-          rating: parseDouble(data['rating']),
-          image: _getImageUrl(record),
-          description: (data['description'] ?? '').toString(),
-          deliveryTime: (data['deliveryTime'] ?? '').toString(),
-          price: parseDouble(data['price']),
-          category: categoryData['slug']!, // 🔥 dùng slug
-          isAvailable:
-              data.containsKey('isAvailable')
-                  ? parseBool(data['isAvailable'])
-                  : true,
-        );
-      }).toList();
+      return records.map(_mapProductRecord).toList();
     } catch (e) {
       debugPrint('GET PRODUCTS ERROR: $e');
       rethrow;
     }
   }
 
-  // ================= HELPER =================
+  Future<ProductModel> getProductById(String id) async {
+    try {
+      final record = await pb
+          .collection('products')
+          .getOne(id, expand: 'category');
 
-  String _getImageUrl(dynamic record) {
-    final fileName = record.getStringValue('image');
-    if (fileName.isEmpty) return '';
-    return '${pb.baseUrl}/api/files/products/${record.id}/$fileName';
-  }
-
-  Map<String, String> _getCategoryData(dynamic record) {
-    final expand = record.expand;
-
-    if (expand['category'] != null && expand['category']!.isNotEmpty) {
-      final category = expand['category']!.first;
-
-      return {
-        'id': category.id,
-        'title': category.getStringValue('title'),
-        'slug': category.getStringValue('slug'),
-      };
+      return _mapProductRecord(record);
+    } catch (e) {
+      debugPrint('GET PRODUCT BY ID ERROR: $e');
+      rethrow;
     }
-
-    return {'id': '', 'title': 'Khác', 'slug': 'khac'};
   }
-
-  // ================= CREATE / UPDATE =================
 
   Future<void> addProduct(ProductModel product, {File? imageFile}) async {
     try {
-      final categoryId = await _findCategoryIdBySlug(product.category);
+      final categoryId = await _resolveCategoryId(product);
 
       final body = {
-        'title': product.title,
-        'subtitle': product.subtitle,
+        'title': product.title.trim(),
+        'subtitle': product.subtitle.trim(),
         'rating': product.rating,
-        'description': product.description,
-        'deliveryTime': product.deliveryTime,
+        'description': product.description.trim(),
+        'deliveryTime': product.deliveryTime.trim(),
         'price': product.price,
         'category': categoryId,
         'isAvailable': product.isAvailable,
@@ -150,14 +96,14 @@ class ProductService {
     File? imageFile,
   }) async {
     try {
-      final categoryId = await _findCategoryIdBySlug(product.category);
+      final categoryId = await _resolveCategoryId(product);
 
       final body = {
-        'title': product.title,
-        'subtitle': product.subtitle,
+        'title': product.title.trim(),
+        'subtitle': product.subtitle.trim(),
         'rating': product.rating,
-        'description': product.description,
-        'deliveryTime': product.deliveryTime,
+        'description': product.description.trim(),
+        'deliveryTime': product.deliveryTime.trim(),
         'price': product.price,
         'category': categoryId,
         'isAvailable': product.isAvailable,
@@ -195,12 +141,64 @@ class ProductService {
     }
   }
 
-  Future<String?> _findCategoryIdBySlug(String slug) async {
-    final records = await pb
-        .collection('categories')
-        .getFullList(filter: 'slug = "$slug"');
+  ProductModel _mapProductRecord(dynamic record) {
+    final categoryData = _getCategoryData(record);
 
-    if (records.isEmpty) return null;
-    return records.first.id;
+    return ProductModel.fromJson({
+      'id': record.id,
+      ...record.data,
+      'image': _buildProductImageUrl(record),
+      'category': categoryData['id'],
+      'categoryTitle': categoryData['title'],
+      'categorySlug': categoryData['slug'],
+      'created': record.created,
+      'updated': record.updated,
+    });
+  }
+
+  Map<String, String> _getCategoryData(dynamic record) {
+    try {
+      final expand = record.expand;
+
+      if (expand['category'] != null && expand['category']!.isNotEmpty) {
+        final category = expand['category']!.first;
+
+        return {
+          'id': category.id,
+          'title': category.getStringValue('title'),
+          'slug': category.getStringValue('slug'),
+        };
+      }
+    } catch (_) {}
+
+    final rawCategory = record.data['category']?.toString() ?? '';
+
+    return {'id': rawCategory, 'title': 'Khác', 'slug': 'khac'};
+  }
+
+  String _buildProductImageUrl(dynamic record) {
+    final fileName = record.getStringValue('image');
+
+    if (fileName.isEmpty) return '';
+
+    return '${pb.baseUrl}/api/files/products/${record.id}/$fileName';
+  }
+
+  Future<String?> _resolveCategoryId(ProductModel product) async {
+    if (product.categoryId.isNotEmpty) {
+      return product.categoryId;
+    }
+
+    if (product.categorySlug.isNotEmpty && product.categorySlug != 'khac') {
+      final records = await pb
+          .collection('categories')
+          .getFullList(filter: 'slug = "${product.categorySlug}"');
+
+      if (records.isNotEmpty) {
+        return records.first.id;
+      }
+    }
+
+    return null;
   }
 }

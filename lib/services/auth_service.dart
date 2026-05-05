@@ -1,4 +1,4 @@
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
 
 class AuthService {
   Future<void> register({
@@ -12,11 +12,11 @@ class AuthService {
           .collection('users')
           .create(
             body: {
-              'email': email,
+              'email': email.trim(),
               'password': password,
               'passwordConfirm': password,
-              'fullName': fullName,
-              'phoneNumber': phoneNumber,
+              'fullName': fullName.trim(),
+              'phoneNumber': phoneNumber.trim(),
               'role': 'customer',
               'isActive': true,
             },
@@ -29,7 +29,7 @@ class AuthService {
 
   Future<void> login({required String email, required String password}) async {
     try {
-      await pb.collection('users').authWithPassword(email, password);
+      await pb.collection('users').authWithPassword(email.trim(), password);
     } catch (e) {
       print('LOGIN ERROR: $e');
       rethrow;
@@ -46,6 +46,7 @@ class AuthService {
       }
 
       final userId = pb.authStore.model?.id;
+
       if (userId == null || userId.isEmpty) {
         throw Exception('Không tìm thấy tài khoản hiện tại');
       }
@@ -72,6 +73,27 @@ class AuthService {
     pb.authStore.clear();
   }
 
+  Future<Map<String, dynamic>?> refreshCurrentUser() async {
+    try {
+      if (!pb.authStore.isValid) return null;
+
+      final userId = pb.authStore.model?.id;
+      if (userId == null || userId.isEmpty) return null;
+
+      final record = await pb.collection('users').getOne(userId);
+
+      return {
+        'id': record.id,
+        ...record.data,
+        'created': record.created,
+        'updated': record.updated,
+      };
+    } catch (e) {
+      print('REFRESH USER ERROR: $e');
+      return null;
+    }
+  }
+
   bool get isLoggedIn => pb.authStore.isValid;
 
   String? get currentUserId => pb.authStore.model?.id;
@@ -79,7 +101,8 @@ class AuthService {
   Map<String, dynamic>? get currentUser {
     final model = pb.authStore.model;
     if (model == null) return null;
-    return model.toJson();
+
+    return {'id': model.id, ...model.toJson()};
   }
 
   String get currentUserRole {
@@ -124,20 +147,5 @@ class AuthService {
 
     final data = model.toJson();
     return data['isActive'] == true;
-  }
-
-  Future<Map<String, dynamic>?> refreshCurrentUser() async {
-    try {
-      if (!pb.authStore.isValid) return null;
-
-      final userId = pb.authStore.model?.id;
-      if (userId == null) return null;
-
-      final record = await pb.collection('users').getOne(userId);
-      return record.toJson();
-    } catch (e) {
-      print('REFRESH USER ERROR: $e');
-      return null;
-    }
   }
 }

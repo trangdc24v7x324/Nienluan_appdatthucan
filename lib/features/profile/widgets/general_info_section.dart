@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/user_profile_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/user_profile_model.dart';
 import '../../../shared/widgets/section_card.dart';
 
 class GeneralInfoSection extends StatefulWidget {
   final UserProfileModel profile;
   final bool isEditing;
   final VoidCallback onEdit;
-  final void Function({
+  final Future<void> Function({
     required String fullName,
     required String email,
     required String phoneNumber,
@@ -34,6 +34,7 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
 
   late String _selectedGender;
   DateTime? _selectedDate;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -68,7 +69,7 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
 
   String _formatDate(DateTime? date) {
     if (date == null) return 'Chưa cập nhật';
-    return '${date.day}/${date.month}/${date.year}';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
   Future<void> _pickDate() async {
@@ -80,9 +81,44 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
     );
 
     if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+
+    final fullName = _fullNameController.text.trim();
+    final phoneNumber = _phoneController.text.trim();
+
+    if (fullName.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng nhập họ và tên.')));
+      return;
+    }
+
+    if (phoneNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập số điện thoại.')),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      await widget.onSave(
+        fullName: fullName,
+        email: _emailController.text.trim(),
+        phoneNumber: phoneNumber,
+        gender: _selectedGender,
+        dateOfBirth: _selectedDate,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -104,7 +140,7 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
           ),
           Expanded(
             child: Text(
-              value,
+              value.trim().isEmpty ? 'Chưa cập nhật' : value,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -117,6 +153,7 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
     String label,
     TextEditingController controller, {
     TextInputType? keyboardType,
+    bool enabled = true,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -137,6 +174,7 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
             child: TextField(
               controller: controller,
               keyboardType: keyboardType,
+              enabled: enabled,
               decoration: const InputDecoration(
                 isDense: true,
                 border: OutlineInputBorder(),
@@ -175,9 +213,7 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
               ],
               onChanged: (value) {
                 if (value == null) return;
-                setState(() {
-                  _selectedGender = value;
-                });
+                setState(() => _selectedGender = value);
               },
               decoration: const InputDecoration(
                 isDense: true,
@@ -236,23 +272,27 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
     return SectionCard(
       title: 'Thông tin chung',
       action: IconButton(
-        onPressed: () {
-          if (widget.isEditing) {
-            widget.onSave(
-              fullName: _fullNameController.text.trim(),
-              email: _emailController.text.trim(),
-              phoneNumber: _phoneController.text.trim(),
-              gender: _selectedGender,
-              dateOfBirth: _selectedDate,
-            );
-          } else {
-            widget.onEdit();
-          }
-        },
-        icon: Icon(
-          widget.isEditing ? Icons.check : Icons.edit_outlined,
-          color: const Color(0xFF8E1F16),
-        ),
+        onPressed:
+            _isSaving
+                ? null
+                : () {
+                  if (widget.isEditing) {
+                    _save();
+                  } else {
+                    widget.onEdit();
+                  }
+                },
+        icon:
+            _isSaving
+                ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                : Icon(
+                  widget.isEditing ? Icons.check : Icons.edit_outlined,
+                  color: const Color(0xFF8E1F16),
+                ),
       ),
       child: Column(
         children: [
@@ -265,7 +305,9 @@ class _GeneralInfoSectionState extends State<GeneralInfoSection> {
           widget.isEditing
               ? _editGenderItem()
               : _viewItem('Giới tính', widget.profile.gender),
-          _viewItem('Email', widget.profile.email),
+          widget.isEditing
+              ? _editTextItem('Email', _emailController, enabled: false)
+              : _viewItem('Email', widget.profile.email),
           widget.isEditing
               ? _editTextItem(
                 'Số điện thoại',

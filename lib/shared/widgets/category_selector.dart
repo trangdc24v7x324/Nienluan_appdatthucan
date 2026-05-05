@@ -55,7 +55,7 @@ class CategorySelector extends StatelessWidget {
               decoration: BoxDecoration(
                 color:
                     isSelected
-                        ? const Color(0xFFEF2A39)
+                        ? const Color.fromARGB(255, 129, 124, 124)
                         : const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow:

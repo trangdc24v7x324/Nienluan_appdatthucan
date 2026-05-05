@@ -1,9 +1,9 @@
-import 'package:ct484tx_project_trangdc24v7x324/models/payment_method_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/payment_method_model.dart';
 import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/section_card.dart';
 
-class PaymentMethodsSection extends StatelessWidget {
+class PaymentMethodsSection extends StatefulWidget {
   final List<PaymentMethodModel> methods;
   final bool isEditing;
   final VoidCallback onEdit;
@@ -17,6 +17,13 @@ class PaymentMethodsSection extends StatelessWidget {
     required this.onSave,
   });
 
+  @override
+  State<PaymentMethodsSection> createState() => _PaymentMethodsSectionState();
+}
+
+class _PaymentMethodsSectionState extends State<PaymentMethodsSection> {
+  bool _isSaving = false;
+
   IconData _getIcon(String type) {
     switch (type) {
       case 'cash':
@@ -24,32 +31,124 @@ class PaymentMethodsSection extends StatelessWidget {
       case 'momo':
         return Icons.account_balance_wallet_outlined;
       case 'visa':
+      case 'bank':
         return Icons.credit_card;
       default:
         return Icons.payment;
     }
   }
 
+  List<PaymentMethodModel> _defaultMethods() {
+    return const [
+      PaymentMethodModel(
+        id: 'cash',
+        userId: '',
+        type: 'cash',
+        displayName: 'Tiền mặt',
+        provider: 'Thanh toán khi nhận hàng',
+        accountNumber: '',
+        isDefault: true,
+      ),
+      PaymentMethodModel(
+        id: 'momo',
+        userId: '',
+        type: 'momo',
+        displayName: 'MoMo',
+        provider: 'Ví điện tử MoMo',
+        accountNumber: '',
+        isDefault: false,
+      ),
+      PaymentMethodModel(
+        id: 'visa',
+        userId: '',
+        type: 'visa',
+        displayName: 'Visa/Mastercard',
+        provider: 'Thẻ Visa/Mastercard',
+        accountNumber: '',
+        isDefault: false,
+      ),
+    ];
+  }
+
+  Future<void> _saveMethods(List<PaymentMethodModel> updatedMethods) async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      await widget.onSave(updatedMethods);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _setDefault(PaymentMethodModel selectedMethod) async {
+    final updatedMethods =
+        widget.methods.map((method) {
+          return method.copyWith(isDefault: method.id == selectedMethod.id);
+        }).toList();
+
+    await _saveMethods(updatedMethods);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final defaultMethodId =
+        widget.methods.isEmpty
+            ? null
+            : widget.methods
+                .firstWhere(
+                  (method) => method.isDefault,
+                  orElse: () => widget.methods.first,
+                )
+                .id;
+
     return SectionCard(
       title: 'Phương thức thanh toán',
       action: IconButton(
-        onPressed: onEdit,
-        icon: Icon(
-          isEditing ? Icons.check : Icons.edit_outlined,
-          color: const Color(0xFFEF2A39),
-        ),
+        onPressed: _isSaving ? null : widget.onEdit,
+        icon:
+            _isSaving
+                ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                : Icon(
+                  widget.isEditing ? Icons.check : Icons.edit_outlined,
+                  color: const Color(0xFFEF2A39),
+                ),
       ),
       child:
-          methods.isEmpty
-              ? const Text(
-                'Chưa có phương thức thanh toán',
-                style: TextStyle(color: Colors.grey),
+          widget.methods.isEmpty
+              ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Chưa có phương thức thanh toán',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  if (widget.isEditing) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed:
+                            _isSaving
+                                ? null
+                                : () => _saveMethods(_defaultMethods()),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Thêm phương thức mặc định'),
+                      ),
+                    ),
+                  ],
+                ],
               )
               : Column(
                 children:
-                    methods.map((method) {
+                    widget.methods.map((method) {
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(_getIcon(method.type)),
@@ -59,26 +158,14 @@ class PaymentMethodsSection extends StatelessWidget {
                         ),
                         subtitle: Text(method.subtitle),
                         trailing:
-                            isEditing
+                            widget.isEditing
                                 ? Radio<String>(
                                   value: method.id,
-                                  groupValue:
-                                      methods
-                                          .firstWhere(
-                                            (m) => m.isDefault,
-                                            orElse: () => methods.first,
-                                          )
-                                          .id,
-                                  onChanged: (_) async {
-                                    final updatedMethods =
-                                        methods.map((m) {
-                                          return m.copyWith(
-                                            isDefault: m.id == method.id,
-                                          );
-                                        }).toList();
-
-                                    await onSave(updatedMethods);
-                                  },
+                                  groupValue: defaultMethodId,
+                                  onChanged:
+                                      _isSaving
+                                          ? null
+                                          : (_) => _setDefault(method),
                                 )
                                 : method.isDefault
                                 ? const Text(

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/address_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/address_model.dart';
 import '../../../shared/widgets/section_card.dart';
 
 class AddressSection extends StatefulWidget {
   final List<AddressModel> addresses;
   final bool isEditing;
   final VoidCallback onEdit;
-  final Function(List<AddressModel>) onSave;
+  final Future<void> Function(List<AddressModel> updatedAddresses) onSave;
 
   const AddressSection({
     super.key,
@@ -22,6 +22,7 @@ class AddressSection extends StatefulWidget {
 
 class _AddressSectionState extends State<AddressSection> {
   late List<AddressModel> _localAddresses;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -32,23 +33,14 @@ class _AddressSectionState extends State<AddressSection> {
   @override
   void didUpdateWidget(covariant AddressSection oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (!widget.isEditing) {
       _localAddresses = _copyAddresses(widget.addresses);
     }
   }
 
   List<AddressModel> _copyAddresses(List<AddressModel> addresses) {
-    return addresses
-        .map(
-          (a) => AddressModel(
-            id: a.id,
-            receiverName: a.receiverName,
-            phoneNumber: a.phoneNumber,
-            fullAddress: a.fullAddress,
-            isDefault: a.isDefault,
-          ),
-        )
-        .toList();
+    return addresses.map((address) => address.copyWith()).toList();
   }
 
   void _addNewAddress() {
@@ -56,9 +48,11 @@ class _AddressSectionState extends State<AddressSection> {
       _localAddresses.add(
         AddressModel(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
+          userId: '',
           receiverName: '',
           phoneNumber: '',
-          fullAddress: '',
+          addressLine: '',
+          note: '',
           isDefault: _localAddresses.isEmpty,
         ),
       );
@@ -71,13 +65,7 @@ class _AddressSectionState extends State<AddressSection> {
       _localAddresses.removeAt(index);
 
       if (wasDefault && _localAddresses.isNotEmpty) {
-        _localAddresses[0] = AddressModel(
-          id: _localAddresses[0].id,
-          receiverName: _localAddresses[0].receiverName,
-          phoneNumber: _localAddresses[0].phoneNumber,
-          fullAddress: _localAddresses[0].fullAddress,
-          isDefault: true,
-        );
+        _localAddresses[0] = _localAddresses[0].copyWith(isDefault: true);
       }
     });
   }
@@ -86,17 +74,49 @@ class _AddressSectionState extends State<AddressSection> {
     setState(() {
       _localAddresses =
           _localAddresses.asMap().entries.map((entry) {
-            final i = entry.key;
-            final a = entry.value;
-            return AddressModel(
-              id: a.id,
-              receiverName: a.receiverName,
-              phoneNumber: a.phoneNumber,
-              fullAddress: a.fullAddress,
-              isDefault: i == index,
-            );
+            return entry.value.copyWith(isDefault: entry.key == index);
           }).toList();
     });
+  }
+
+  Future<void> _saveAddresses() async {
+    if (_isSaving) return;
+
+    final validAddresses =
+        _localAddresses.where((address) {
+          return address.receiverName.trim().isNotEmpty &&
+              address.phoneNumber.trim().isNotEmpty &&
+              address.addressLine.trim().isNotEmpty;
+        }).toList();
+
+    if (validAddresses.length != _localAddresses.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập đầy đủ tên, số điện thoại và địa chỉ.'),
+        ),
+      );
+      return;
+    }
+
+    final hasDefault = validAddresses.any((address) => address.isDefault);
+    final normalizedAddresses =
+        validAddresses.asMap().entries.map((entry) {
+          final index = entry.key;
+          final address = entry.value;
+          return address.copyWith(
+            isDefault: hasDefault ? address.isDefault : index == 0,
+          );
+        }).toList();
+
+    setState(() => _isSaving = true);
+
+    try {
+      await widget.onSave(normalizedAddresses);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   Widget _buildViewItem(AddressModel address) {
@@ -113,9 +133,13 @@ class _AddressSectionState extends State<AddressSection> {
         children: [
           Row(
             children: [
-              Text(
-                address.receiverName,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  address.receiverName.isEmpty
+                      ? 'Chưa có tên người nhận'
+                      : address.receiverName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(width: 8),
               if (address.isDefault)
@@ -140,9 +164,24 @@ class _AddressSectionState extends State<AddressSection> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(address.phoneNumber),
+          Text(
+            address.phoneNumber.isEmpty
+                ? 'Chưa có số điện thoại'
+                : address.phoneNumber,
+          ),
           const SizedBox(height: 4),
-          Text(address.fullAddress),
+          Text(
+            address.addressLine.isEmpty
+                ? 'Chưa có địa chỉ giao hàng'
+                : address.addressLine,
+          ),
+          if (address.note.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Ghi chú: ${address.note}',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
         ],
       ),
     );
@@ -152,6 +191,7 @@ class _AddressSectionState extends State<AddressSection> {
     final address = _localAddresses[index];
 
     return Container(
+      key: ValueKey(address.id),
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -169,7 +209,7 @@ class _AddressSectionState extends State<AddressSection> {
               ),
               const Spacer(),
               IconButton(
-                onPressed: () => _removeAddress(index),
+                onPressed: _isSaving ? null : () => _removeAddress(index),
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
               ),
             ],
@@ -182,12 +222,8 @@ class _AddressSectionState extends State<AddressSection> {
               border: OutlineInputBorder(),
             ),
             onChanged: (value) {
-              _localAddresses[index] = AddressModel(
-                id: address.id,
+              _localAddresses[index] = _localAddresses[index].copyWith(
                 receiverName: value,
-                phoneNumber: _localAddresses[index].phoneNumber,
-                fullAddress: _localAddresses[index].fullAddress,
-                isDefault: _localAddresses[index].isDefault,
               );
             },
           ),
@@ -200,30 +236,36 @@ class _AddressSectionState extends State<AddressSection> {
             ),
             keyboardType: TextInputType.phone,
             onChanged: (value) {
-              _localAddresses[index] = AddressModel(
-                id: address.id,
-                receiverName: _localAddresses[index].receiverName,
+              _localAddresses[index] = _localAddresses[index].copyWith(
                 phoneNumber: value,
-                fullAddress: _localAddresses[index].fullAddress,
-                isDefault: _localAddresses[index].isDefault,
               );
             },
           ),
           const SizedBox(height: 10),
           TextFormField(
-            initialValue: address.fullAddress,
+            initialValue: address.addressLine,
             decoration: const InputDecoration(
               labelText: 'Địa chỉ đầy đủ',
               border: OutlineInputBorder(),
             ),
             maxLines: 2,
             onChanged: (value) {
-              _localAddresses[index] = AddressModel(
-                id: address.id,
-                receiverName: _localAddresses[index].receiverName,
-                phoneNumber: _localAddresses[index].phoneNumber,
-                fullAddress: value,
-                isDefault: _localAddresses[index].isDefault,
+              _localAddresses[index] = _localAddresses[index].copyWith(
+                addressLine: value,
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            initialValue: address.note,
+            decoration: const InputDecoration(
+              labelText: 'Ghi chú',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 2,
+            onChanged: (value) {
+              _localAddresses[index] = _localAddresses[index].copyWith(
+                note: value,
               );
             },
           ),
@@ -232,13 +274,16 @@ class _AddressSectionState extends State<AddressSection> {
             children: [
               Checkbox(
                 value: address.isDefault,
-                onChanged: (value) {
-                  if (value == true) {
-                    _setDefaultAddress(index);
-                  }
-                },
+                onChanged:
+                    _isSaving
+                        ? null
+                        : (value) {
+                          if (value == true) {
+                            _setDefaultAddress(index);
+                          }
+                        },
               ),
-              const Text('Đặt làm địa chỉ mặc định'),
+              const Expanded(child: Text('Đặt làm địa chỉ mặc định')),
             ],
           ),
         ],
@@ -251,20 +296,38 @@ class _AddressSectionState extends State<AddressSection> {
     return SectionCard(
       title: 'Địa chỉ giao hàng',
       action: IconButton(
-        onPressed: () {
-          if (widget.isEditing) {
-            widget.onSave(_localAddresses);
-          } else {
-            widget.onEdit();
-          }
-        },
-        icon: Icon(
-          widget.isEditing ? Icons.check : Icons.edit_outlined,
-          color: const Color(0xFF8E1F16),
-        ),
+        onPressed:
+            _isSaving
+                ? null
+                : () {
+                  if (widget.isEditing) {
+                    _saveAddresses();
+                  } else {
+                    widget.onEdit();
+                  }
+                },
+        icon:
+            _isSaving
+                ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                : Icon(
+                  widget.isEditing ? Icons.check : Icons.edit_outlined,
+                  color: const Color(0xFF8E1F16),
+                ),
       ),
       child: Column(
         children: [
+          if (_localAddresses.isEmpty && !widget.isEditing)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Chưa có địa chỉ giao hàng',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
           ..._localAddresses.asMap().entries.map((entry) {
             final index = entry.key;
             final address = entry.value;
@@ -276,7 +339,7 @@ class _AddressSectionState extends State<AddressSection> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _addNewAddress,
+                onPressed: _isSaving ? null : _addNewAddress,
                 icon: const Icon(Icons.add),
                 label: const Text('Thêm địa chỉ'),
               ),

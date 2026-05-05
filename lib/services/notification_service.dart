@@ -1,5 +1,5 @@
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/app_notification_model.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/models/app_notification_model.dart';
 
 class NotificationService {
   Future<List<AppNotificationModel>> fetchCustomerNotifications({
@@ -13,9 +13,32 @@ class NotificationService {
               'targetRole = "customer" || targetRole = "all" || (targetRole = "personal" && targetUser = "$userId")',
         );
 
-    return records
-        .map((record) => AppNotificationModel.fromJson(record.toJson()))
-        .toList();
+    return records.map((record) {
+      return AppNotificationModel.fromJson({
+        'id': record.id,
+        ...record.data,
+        'created': record.created,
+        'updated': record.updated,
+      });
+    }).toList();
+  }
+
+  Future<List<AppNotificationModel>> fetchManagerNotifications() async {
+    final records = await pb
+        .collection('notifications')
+        .getFullList(
+          sort: '-created',
+          filter: 'targetRole = "manager" || targetRole = "all"',
+        );
+
+    return records.map((record) {
+      return AppNotificationModel.fromJson({
+        'id': record.id,
+        ...record.data,
+        'created': record.created,
+        'updated': record.updated,
+      });
+    }).toList();
   }
 
   Future<void> createManagerNotification({
@@ -23,16 +46,7 @@ class NotificationService {
     required String body,
     required String type,
   }) async {
-    await pb
-        .collection('notifications')
-        .create(
-          body: {
-            'title': title,
-            'body': body,
-            'type': type,
-            'targetRole': 'customer',
-          },
-        );
+    await create(title: title, body: body, type: type, targetRole: 'customer');
   }
 
   Future<void> create({
@@ -47,13 +61,32 @@ class NotificationService {
         .collection('notifications')
         .create(
           body: {
-            'title': title,
-            'body': body,
-            'type': type,
+            'title': title.trim(),
+            'body': body.trim(),
+            'type': type.trim(),
             'targetRole': targetRole,
             'targetUser': targetUser,
             'orderId': orderId,
+            'isRead': false,
           },
         );
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    await pb
+        .collection('notifications')
+        .update(notificationId, body: {'isRead': true});
+  }
+
+  Future<void> markAllAsRead(List<AppNotificationModel> notifications) async {
+    for (final item in notifications) {
+      if (!item.isRead) {
+        await markAsRead(item.id);
+      }
+    }
+  }
+
+  Future<void> deleteNotification(String notificationId) async {
+    await pb.collection('notifications').delete(notificationId);
   }
 }

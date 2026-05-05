@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../models/chat_room_model.dart';
-import '../../../providers/chat_provider.dart';
-import 'chat_page.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/chat_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/routes/app_routes.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_colors.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/theme/app_text.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
 
 class ManagerChatListPage extends StatefulWidget {
   const ManagerChatListPage({super.key});
@@ -13,406 +17,254 @@ class ManagerChatListPage extends StatefulWidget {
 }
 
 class _ManagerChatListPageState extends State<ManagerChatListPage> {
+  late final String managerId;
+
+  @override
+  void initState() {
+    super.initState();
+
+    managerId = pb.authStore.model?.id ?? '';
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadChatList();
+    });
+  }
+
+  Future<void> _loadChatList() async {
+    if (managerId.isEmpty) return;
+
+    await context.read<ChatProvider>().loadManagerChatSummary(
+      managerId: managerId,
+    );
+  }
+
+  Future<void> _openChat({
+    required String customerId,
+    required String customerName,
+  }) async {
+    if (managerId.isEmpty || customerId.isEmpty) return;
+
+    await context.read<ChatProvider>().markAllAsRead(
+      currentUserId: managerId,
+      otherUserId: customerId,
+    );
+
+    if (!mounted) return;
+
+    await Navigator.pushNamed(
+      context,
+      AppRoutes.managerChatDetail,
+      arguments: {'otherUserId': customerId, 'otherUserName': customerName},
+    );
+
+    if (!mounted) return;
+
+    await _loadChatList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final chatProvider = context.watch<ChatProvider>();
-    final rooms = chatProvider.rooms;
+    return AppLayout(
+      title: 'Tin nhắn khách hàng',
+      showBack: true,
+      child: AppBody(
+        child: Consumer<ChatProvider>(
+          builder: (context, chatProvider, _) {
+            final items = chatProvider.rooms;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFEF2A39),
-      body: Column(
-        children: [
-          const _ManagerHeader(title: 'Tin nhắn khách hàng'),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-              ),
-              child: Builder(
-                builder: (_) {
-                  if (chatProvider.isLoadingRooms) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFEF2A39),
-                      ),
-                    );
-                  }
+            if (chatProvider.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                  if (chatProvider.error != null) {
-                    return _MessageState(
-                      icon: Icons.error_outline_rounded,
-                      title: 'Không tải được tin nhắn',
-                      message: chatProvider.error!,
-                      iconColor: Colors.red,
-                    );
-                  }
+            if (items.isEmpty) {
+              return RefreshIndicator(
+                onRefresh: _loadChatList,
+                child: const SingleChildScrollView(
+                  physics: AlwaysScrollableScrollPhysics(),
+                  child: SizedBox(height: 420, child: _EmptyManagerChat()),
+                ),
+              );
+            }
 
-                  if (rooms.isEmpty) {
-                    return const _MessageState(
-                      icon: Icons.forum_outlined,
-                      title: 'Chưa có cuộc trò chuyện nào',
-                      message:
-                          'Khi khách hàng nhắn tin, cuộc trò chuyện sẽ hiển thị tại đây.',
-                      iconColor: Color(0xFF64748B),
-                    );
-                  }
+            return RefreshIndicator(
+              onRefresh: _loadChatList,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(14, 16, 14, 20),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final room = items[index];
 
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final horizontalPadding =
-                          constraints.maxWidth >= 700 ? 24.0 : 16.0;
-
-                      return ListView.separated(
-                        padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
-                          20,
-                          horizontalPadding,
-                          28,
+                  return _ChatUserTile(
+                    item: room,
+                    onTap:
+                        () => _openChat(
+                          customerId: room.userId,
+                          customerName: room.fullName,
                         ),
-                        itemCount: rooms.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final room = rooms[index];
-
-                          return Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 760),
-                              child: _ChatRoomTile(room: room),
-                            ),
-                          );
-                        },
-                      );
-                    },
                   );
                 },
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ManagerHeader extends StatelessWidget {
-  final String title;
-
-  const _ManagerHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final isSmall = MediaQuery.sizeOf(context).width < 380;
-
-    return SafeArea(
-      bottom: false,
-      child: Container(
-        width: double.infinity,
-        color: const Color(0xFFEF2A39),
-        padding: EdgeInsets.fromLTRB(
-          isSmall ? 12 : 14,
-          12,
-          isSmall ? 12 : 14,
-          16,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 21,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isSmall ? 17 : 19,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 44, height: 44),
-              ],
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _ChatRoomTile extends StatelessWidget {
-  final ChatRoomModel room;
+class _ChatUserTile extends StatelessWidget {
+  final ChatRoomSummary item;
+  final VoidCallback onTap;
 
-  const _ChatRoomTile({required this.room});
+  const _ChatUserTile({required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final hasUnread = room.unreadForManager > 0;
+    final hasUnread = item.unreadCount > 0;
 
     return Material(
-      color: Colors.transparent,
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (_) => ChatPage(
-                    userId: room.userId,
-                    userName: room.userName,
-                    userAvatar: room.userAvatar,
-                    currentUserId: 'manager',
-                    currentUserRole: 'manager',
-                  ),
-            ),
-          );
-        },
-        child: Ink(
-          padding: const EdgeInsets.all(14),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: hasUnread ? const Color(0xFFEFF6FF) : Colors.white,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color:
-                  hasUnread ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0),
+                  hasUnread
+                      ? Colors.red.withOpacity(0.25)
+                      : Colors.grey.shade200,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.035),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
           ),
           child: Row(
             children: [
-              _UserAvatar(room: room, hasUnread: hasUnread),
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: Colors.grey.shade200,
+                backgroundImage:
+                    item.avatarUrl.isNotEmpty
+                        ? NetworkImage(item.avatarUrl)
+                        : null,
+                child:
+                    item.avatarUrl.isEmpty
+                        ? const Icon(Icons.person, color: Colors.grey)
+                        : null,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      room.userName.isEmpty ? 'Khách hàng' : room.userName,
+                      item.fullName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        color: const Color(0xFF1F2937),
+                      style: AppText.body.copyWith(
                         fontWeight:
-                            hasUnread ? FontWeight.w900 : FontWeight.w700,
+                            hasUnread ? FontWeight.w800 : FontWeight.w700,
+                        color: AppColors.textDark,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Text(
-                      room.lastMessage.isEmpty
-                          ? 'Chưa có tin nhắn'
-                          : room.lastMessage,
+                      item.lastMessage.isEmpty
+                          ? 'Chưa có nội dung tin nhắn'
+                          : item.lastMessage,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: AppText.body.copyWith(
                         color:
-                            hasUnread
-                                ? const Color(0xFF334155)
-                                : Colors.grey.shade600,
-                        fontSize: 13,
+                            hasUnread ? AppColors.textDark : AppColors.textGrey,
                         fontWeight:
-                            hasUnread ? FontWeight.w700 : FontWeight.w500,
+                            hasUnread ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              if (hasUnread)
-                Container(
-                  constraints: const BoxConstraints(
-                    minWidth: 26,
-                    minHeight: 26,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Center(
-                    child: Text(
-                      room.unreadForManager > 99
-                          ? '99+'
-                          : '${room.unreadForManager}',
-                      style: const TextStyle(
-                        color: Colors.white,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (item.lastTime != null)
+                    Text(
+                      _formatTime(item.lastTime!),
+                      style: TextStyle(
+                        color: AppColors.textGrey,
                         fontSize: 11,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
-                  ),
-                )
-              else
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF94A3B8),
-                ),
+                  const SizedBox(height: 6),
+                  if (hasUnread) _UnreadBadge(count: item.unreadCount),
+                ],
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
             ],
           ),
         ),
       ),
     );
   }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+
+    final isToday =
+        time.year == now.year && time.month == now.month && time.day == now.day;
+
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+
+    if (isToday) {
+      return '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
+    }
+
+    return '${twoDigits(time.day)}/${twoDigits(time.month)}';
+  }
 }
 
-class _UserAvatar extends StatelessWidget {
-  final ChatRoomModel room;
-  final bool hasUnread;
+class _UnreadBadge extends StatelessWidget {
+  final int count;
 
-  const _UserAvatar({required this.room, required this.hasUnread});
+  const _UnreadBadge({required this.count});
 
   @override
   Widget build(BuildContext context) {
-    final name = room.userName.trim();
-    final firstLetter = name.isNotEmpty ? name[0].toUpperCase() : 'K';
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 54,
-          height: 54,
-          decoration: BoxDecoration(
-            color:
-                hasUnread ? const Color(0xFFDBEAFE) : const Color(0xFFF1F5F9),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: hasUnread ? const Color(0xFF60A5FA) : Colors.white,
-              width: 2,
-            ),
-          ),
-          child: ClipOval(
-            child:
-                room.userAvatar != null && room.userAvatar!.isNotEmpty
-                    ? Image.network(
-                      room.userAvatar!,
-                      fit: BoxFit.cover,
-                      errorBuilder:
-                          (_, __, ___) => Center(
-                            child: Text(
-                              firstLetter,
-                              style: TextStyle(
-                                color:
-                                    hasUnread
-                                        ? const Color(0xFF2563EB)
-                                        : const Color(0xFF64748B),
-                                fontWeight: FontWeight.w900,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
-                    )
-                    : Center(
-                      child: Text(
-                        firstLetter,
-                        style: TextStyle(
-                          color:
-                              hasUnread
-                                  ? const Color(0xFF2563EB)
-                                  : const Color(0xFF64748B),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
         ),
-        Positioned(
-          right: 1,
-          bottom: 1,
-          child: Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              color:
-                  room.userOnline
-                      ? const Color(0xFF22C55E)
-                      : const Color(0xFF94A3B8),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _MessageState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String message;
-  final Color iconColor;
-
-  const _MessageState({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.iconColor,
-  });
+class _EmptyManagerChat extends StatelessWidget {
+  const _EmptyManagerChat();
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 320),
-        child: Container(
-          margin: const EdgeInsets.all(22),
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 46, color: iconColor),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'Chưa có khách hàng nào nhắn tin.',
+          textAlign: TextAlign.center,
+          style: AppText.body.copyWith(color: AppColors.textGrey),
         ),
       ),
     );

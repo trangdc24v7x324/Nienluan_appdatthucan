@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/category_model.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/models/category_model.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
 
 class ManagerCategoriesPage extends StatefulWidget {
   const ManagerCategoriesPage({super.key});
@@ -11,8 +13,8 @@ class ManagerCategoriesPage extends StatefulWidget {
 }
 
 class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
-  bool _isLoading = false;
   final List<CategoryModel> _categories = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -21,9 +23,7 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
   }
 
   Future<void> _loadCategories() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final records = await pb
@@ -34,25 +34,18 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
         ..clear()
         ..addAll(
           records.map((record) {
-            final data = record.data;
-            return CategoryModel(
-              id: record.id,
-              title: (data['title'] ?? '').toString(),
-              slug: (data['slug'] ?? '').toString(),
-              icon: (data['icon'] ?? '').toString(),
-              sortOrder: ((data['sortOrder'] ?? 0) as num).toInt(),
-              isActive: data['isActive'] ?? true,
-            );
+            return CategoryModel.fromJson({
+              'id': record.id,
+              ...record.data,
+              'created': record.created,
+              'updated': record.updated,
+            });
           }),
         );
     } catch (e) {
       _showMessage('Không tải được danh mục');
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -100,7 +93,6 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
 
     String selectedIcon = category?.icon ?? 'category';
     bool isActive = category?.isActive ?? true;
-
     final isEdit = category != null;
 
     final result = await showDialog<bool>(
@@ -124,9 +116,7 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
                         border: OutlineInputBorder(),
                       ),
                       onChanged: (value) {
-                        if (!isEdit) {
-                          slugController.text = _makeSlug(value);
-                        }
+                        if (!isEdit) slugController.text = _makeSlug(value);
                       },
                     ),
                     const SizedBox(height: 12),
@@ -186,9 +176,7 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
                       ],
                       onChanged: (value) {
                         if (value == null) return;
-                        setDialogState(() {
-                          selectedIcon = value;
-                        });
+                        setDialogState(() => selectedIcon = value);
                       },
                     ),
                     const SizedBox(height: 8),
@@ -198,13 +186,8 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
                       value: isActive,
                       activeColor: Colors.white,
                       activeTrackColor: Colors.green,
-                      inactiveThumbColor: Colors.white,
-                      inactiveTrackColor: Colors.grey,
-                      onChanged: (value) {
-                        setDialogState(() {
-                          isActive = value;
-                        });
-                      },
+                      onChanged:
+                          (value) => setDialogState(() => isActive = value),
                     ),
                   ],
                 ),
@@ -247,8 +230,8 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
                         await pb.collection('categories').create(body: body);
                       }
 
-                      if (!mounted) return;
-                      Navigator.pop(dialogContext, true);
+                      if (dialogContext.mounted)
+                        Navigator.pop(dialogContext, true);
                     } catch (e) {
                       _showMessage(
                         isEdit
@@ -285,9 +268,7 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
             borderRadius: BorderRadius.circular(22),
           ),
           title: const Text('Xóa danh mục'),
-          content: Text(
-            'Bạn có chắc muốn xóa "${category.title}" không?\n\nNếu danh mục đang được sản phẩm sử dụng, bạn nên tắt hoạt động thay vì xóa.',
-          ),
+          content: Text('Bạn có chắc muốn xóa "${category.title}" không?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -314,193 +295,53 @@ class _ManagerCategoriesPageState extends State<ManagerCategoriesPage> {
       _showMessage('Đã xóa danh mục');
     } catch (e) {
       _showMessage(
-        'Không thể xóa. Danh mục có thể đang được sản phẩm sử dụng.',
+        'Không thể xóa danh mục. Có thể danh mục đang được sản phẩm sử dụng.',
       );
     }
-  }
-
-  Future<void> _toggleActive(CategoryModel category, bool value) async {
-    final index = _categories.indexWhere((item) => item.id == category.id);
-    if (index == -1) return;
-
-    final oldCategory = _categories[index];
-
-    setState(() {
-      _categories[index] = CategoryModel(
-        id: oldCategory.id,
-        title: oldCategory.title,
-        slug: oldCategory.slug,
-        icon: oldCategory.icon,
-        sortOrder: oldCategory.sortOrder,
-        isActive: value,
-      );
-    });
-
-    try {
-      await pb
-          .collection('categories')
-          .update(category.id, body: {'isActive': value});
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _categories[index] = oldCategory;
-      });
-
-      _showMessage('Cập nhật trạng thái thất bại');
-    }
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFEF2A39)),
-      );
-    }
-
-    if (_categories.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _loadCategories,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: const [
-            SizedBox(height: 220),
-            Center(
-              child: Text(
-                'Chưa có danh mục',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadCategories,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final horizontalPadding = constraints.maxWidth >= 700 ? 24.0 : 16.0;
-
-          return ListView.separated(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              20,
-              horizontalPadding,
-              88,
-            ),
-            itemCount: _categories.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, index) {
-              final category = _categories[index];
-
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: _CategoryCard(
-                    category: category,
-                    icon: _getIcon(category.icon),
-                    onEdit: () => _openForm(category: category),
-                    onDelete: () => _confirmDelete(category),
-                    onToggle: (value) => _toggleActive(category, value),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEF2A39),
+    return AppLayout(
+      title: 'Quản lý danh mục',
+      showBack: true,
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFFEF2A39),
         onPressed: () => _openForm(),
         child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: Column(
-        children: [
-          const _ManagerHeader(title: 'Quản lý danh mục'),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF7F7F7),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-              ),
-              child: _buildBody(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ManagerHeader extends StatelessWidget {
-  final String title;
-
-  const _ManagerHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isSmall = width < 380;
-
-    return SafeArea(
-      bottom: false,
-      child: Container(
-        width: double.infinity,
-        color: const Color(0xFFEF2A39),
-        padding: EdgeInsets.fromLTRB(
-          isSmall ? 12 : 14,
-          12,
-          isSmall ? 12 : 14,
-          16,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 21,
-                    ),
-                  ),
+      child: AppBody(
+        child:
+            _isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFEF2A39)),
+                )
+                : RefreshIndicator(
+                  onRefresh: _loadCategories,
+                  child:
+                      _categories.isEmpty
+                          ? ListView(
+                            children: const [
+                              SizedBox(height: 220),
+                              Center(child: Text('Chưa có danh mục')),
+                            ],
+                          )
+                          : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+                            itemCount: _categories.length,
+                            separatorBuilder:
+                                (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (_, index) {
+                              final category = _categories[index];
+                              return _CategoryCard(
+                                category: category,
+                                icon: _getIcon(category.icon),
+                                onEdit: () => _openForm(category: category),
+                                onDelete: () => _confirmDelete(category),
+                              );
+                            },
+                          ),
                 ),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isSmall ? 17 : 19,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 44, height: 44),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -511,26 +352,24 @@ class _CategoryCard extends StatelessWidget {
   final IconData icon;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final ValueChanged<bool> onToggle;
 
   const _CategoryCard({
     required this.category,
     required this.icon,
     required this.onEdit,
     required this.onDelete,
-    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isSmall = MediaQuery.sizeOf(context).width < 380;
+    final color = category.isActive ? Colors.green : Colors.grey;
 
     return Container(
-      padding: EdgeInsets.all(isSmall ? 12 : 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -541,77 +380,47 @@ class _CategoryCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: isSmall ? 46 : 52,
-            height: isSmall ? 46 : 52,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFEEF0),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFFEF2A39),
-              size: isSmall ? 24 : 27,
-            ),
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: const Color(0xFFEF2A39).withOpacity(0.1),
+            child: Icon(icon, color: const Color(0xFFEF2A39)),
           ),
-          SizedBox(width: isSmall ? 10 : 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   category.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isSmall ? 15 : 16,
+                  style: const TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF2D2D2D),
+                    fontSize: 15,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Slug: ${category.slug}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isSmall ? 12 : 12.5,
-                    color: Colors.grey.shade700,
-                  ),
+                  'slug: ${category.slug} • sort: ${category.sortOrder}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 6),
                 Text(
-                  'Thứ tự: ${category.sortOrder}',
+                  category.isActive ? 'Đang hoạt động' : 'Đã ẩn',
                   style: TextStyle(
-                    fontSize: isSmall ? 12 : 12.5,
-                    color: Colors.grey.shade700,
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          Switch(
-            value: category.isActive,
-            activeColor: Colors.white,
-            activeTrackColor: Colors.green,
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: Colors.grey.shade400,
-            onChanged: onToggle,
+          IconButton(
+            onPressed: onEdit,
+            icon: const Icon(Icons.edit, color: Colors.indigo),
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') {
-                onEdit();
-              } else if (value == 'delete') {
-                onDelete();
-              }
-            },
-            itemBuilder:
-                (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Sửa')),
-                  PopupMenuItem(value: 'delete', child: Text('Xóa')),
-                ],
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete, color: Colors.red),
           ),
         ],
       ),

@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/cart_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/chat_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/notification_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/cart_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/order_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/product_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/profile_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/chat_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/notification_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/routes/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,27 +28,27 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
-        ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
-
-        // ChatProvider dùng PocketBase realtime
-        ChangeNotifierProvider(
-          create: (_) => ChatProvider()..listenChatRooms(),
-        ),
       ],
       child: MaterialApp(
-        title: 'YourFood',
         debugShowCheckedModeBanner: false,
+        title: 'CT466 Project',
         theme: ThemeData(
-          scaffoldBackgroundColor: Colors.white,
-          primarySwatch: Colors.red,
-          textTheme: GoogleFonts.interTextTheme(),
-          useMaterial3: true,
-
+          textTheme: GoogleFonts.robotoTextTheme(),
+          primarySwatch: Colors.blue,
         ),
+        builder: (context, child) {
+          return GestureDetector(
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         initialRoute: AppRoutes.splash,
         routes: AppRoutes.routes,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
       ),
     );
   }

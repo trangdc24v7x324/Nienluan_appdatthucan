@@ -1,43 +1,68 @@
-enum SenderRole { user, manager }
-
 class ChatMessageModel {
   final String id;
-  final String roomId;
   final String senderId;
-  final SenderRole senderRole;
-  final String message;
-  final String? imageUrl;
-  final String type;
-  final DateTime createdAt;
+  final String receiverId;
+  final String content;
   final bool isRead;
+  final DateTime created;
+  final DateTime updated;
 
-  ChatMessageModel({
+  const ChatMessageModel({
     required this.id,
-    required this.roomId,
     required this.senderId,
-    required this.senderRole,
-    required this.message,
-    this.imageUrl,
-    required this.type,
-    required this.createdAt,
-    required this.isRead,
+    required this.receiverId,
+    required this.content,
+    this.isRead = false,
+    required this.created,
+    required this.updated,
   });
 
-  factory ChatMessageModel.fromMap(String id, Map<String, dynamic> map) {
+  bool isMine(String currentUserId) {
+    return senderId == currentUserId;
+  }
+
+  factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
     return ChatMessageModel(
-      id: id,
-      roomId: map['roomId'] ?? '',
-      senderId: map['senderId'] ?? '',
-      senderRole:
-          map['senderRole'] == 'manager' ? SenderRole.manager : SenderRole.user,
-      message: map['message'] ?? '',
-      imageUrl: map['imageUrl'],
-      type: map['type'] ?? 'text',
-      createdAt:
-          map['createdAt'] != null
-              ? DateTime.tryParse(map['createdAt']) ?? DateTime.now()
-              : DateTime.now(),
-      isRead: map['isRead'] ?? false,
+      id: json['id']?.toString() ?? '',
+      senderId: json['sender']?.toString() ?? '',
+      receiverId: json['receiver']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+      isRead: json['isRead'] == true,
+      created:
+          DateTime.tryParse(json['created']?.toString() ?? '') ??
+          DateTime.now(),
+      updated:
+          DateTime.tryParse(json['updated']?.toString() ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sender': senderId,
+      'receiver': receiverId,
+      'content': content,
+      'isRead': isRead,
+    };
+  }
+
+  ChatMessageModel copyWith({
+    String? id,
+    String? senderId,
+    String? receiverId,
+    String? content,
+    bool? isRead,
+    DateTime? created,
+    DateTime? updated,
+  }) {
+    return ChatMessageModel(
+      id: id ?? this.id,
+      senderId: senderId ?? this.senderId,
+      receiverId: receiverId ?? this.receiverId,
+      content: content ?? this.content,
+      isRead: isRead ?? this.isRead,
+      created: created ?? this.created,
+      updated: updated ?? this.updated,
     );
   }
 }

@@ -1,217 +1,431 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:pocketbase/pocketbase.dart';
 
-import '../models/chat_message_model.dart';
-import '../models/chat_room_model.dart';
-import '../services/chat_service.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/models/chat_message_model.dart';
+import 'package:CT466_project_trangdc24v7x324/services/chat_service.dart';
 
-class ChatProvider extends ChangeNotifier {
+class ChatRoomSummary {
+  final String userId;
+  final String fullName;
+  final String avatarUrl;
+  final String lastMessage;
+  final DateTime? lastTime;
+  final int unreadCount;
+
+  const ChatRoomSummary({
+    required this.userId,
+    required this.fullName,
+    this.avatarUrl = '',
+    this.lastMessage = '',
+    this.lastTime,
+    this.unreadCount = 0,
+  });
+
+  ChatRoomSummary copyWith({
+    String? userId,
+    String? fullName,
+    String? avatarUrl,
+    String? lastMessage,
+    DateTime? lastTime,
+    int? unreadCount,
+  }) {
+    return ChatRoomSummary(
+      userId: userId ?? this.userId,
+      fullName: fullName ?? this.fullName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastTime: lastTime ?? this.lastTime,
+      unreadCount: unreadCount ?? this.unreadCount,
+    );
+  }
+}
+
+class ChatProvider with ChangeNotifier {
   final ChatService _chatService = ChatService();
 
-  StreamSubscription<List<ChatRoomModel>>? _roomSub;
-  StreamSubscription<List<ChatMessageModel>>? _messageSub;
+  final List<ChatMessageModel> _messages = [];
+  final List<ChatRoomSummary> _rooms = [];
 
-  List<ChatRoomModel> _rooms = [];
-  List<ChatMessageModel> _messages = [];
-
-  ChatRoomModel? _selectedRoom;
-
-  bool _isLoadingRooms = false;
-  bool _isLoadingMessages = false;
+  bool _isLoading = false;
   bool _isSending = false;
-  String? _error;
 
-  List<ChatRoomModel> get rooms => _rooms;
-  List<ChatMessageModel> get messages => _messages;
+  int _unreadCount = 0;
+  int _totalRooms = 0;
 
-  ChatRoomModel? get selectedRoom => _selectedRoom;
+  String? _errorMessage;
 
-  bool get isLoadingRooms => _isLoadingRooms;
-  bool get isLoadingMessages => _isLoadingMessages;
+  List<ChatMessageModel> get messages => List.unmodifiable(_messages);
+  List<ChatRoomSummary> get rooms => List.unmodifiable(_rooms);
+
+  bool get isLoading => _isLoading;
   bool get isSending => _isSending;
-  String? get error => _error;
 
-  int get totalRooms => _rooms.length;
+  int get unreadCount => _unreadCount;
+  int get totalRooms => _totalRooms;
 
-  int get unreadCount {
-    return _rooms.where((room) => room.unreadForManager > 0).length;
-  }
+  String? get errorMessage => _errorMessage;
 
-  bool get hasUnread => unreadCount > 0;
+  bool get hasUnread => _unreadCount > 0;
 
-  void listenChatRooms() {
-    _roomSub?.cancel();
-
-    _isLoadingRooms = true;
-    _error = null;
+  Future<void> loadMessages({
+    required String currentUserId,
+    required String otherUserId,
+    bool markRead = true,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
-    _roomSub = _chatService.getChatRooms().listen(
-      (rooms) {
-        _rooms = rooms;
-        _isLoadingRooms = false;
+    try {
+      final result = await _chatService.getMessages(
+        currentUserId: currentUserId,
+        otherUserId: otherUserId,
+      );
 
-        if (_selectedRoom != null) {
-          final index = _rooms.indexWhere(
-            (room) => room.id == _selectedRoom!.id,
-          );
+      _messages
+        ..clear()
+        ..addAll(result);
 
-          if (index != -1) {
-            _selectedRoom = _rooms[index];
-          }
+      _sortMessages();
+
+      if (markRead) {
+        await markAllAsRead(
+          currentUserId: currentUserId,
+          otherUserId: otherUserId,
+        );
+      }
+    } catch (e) {
+      _errorMessage = 'Không thể tải tin nhắn';
+      debugPrint('loadMessages error: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> sendMessage({
+    required String senderId,
+    required String receiverId,
+    required String content,
+  }) async {
+    final text = content.trim();
+
+    if (text.isEmpty) return false;
+
+    _isSending = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final newMessage = await _chatService.sendMessage(
+        senderId: senderId,
+        receiverId: receiverId,
+        content: text,
+      );
+
+      final exists = _messages.any((message) => message.id == newMessage.id);
+
+      if (!exists) {
+        _messages.add(newMessage);
+        _sortMessages();
+      }
+
+      notifyListeners();
+
+      return true;
+    } catch (e) {
+      _errorMessage = 'Gửi tin nhắn thất bại';
+      debugPrint('sendMessage error: $e');
+      return false;
+    } finally {
+      _isSending = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> subscribeMessages({
+    required String currentUserId,
+    required String otherUserId,
+  }) async {
+    await _chatService.unsubscribeMessages();
+
+    await _chatService.subscribeMessages(
+      onMessage: (event) async {
+        final record = event.record;
+        if (record == null) return;
+
+        final senderId = record.data['sender']?.toString() ?? '';
+        final receiverId = record.data['receiver']?.toString() ?? '';
+
+        final isRelated =
+            (senderId == currentUserId && receiverId == otherUserId) ||
+            (senderId == otherUserId && receiverId == currentUserId);
+
+        if (!isRelated) return;
+
+        if (event.action == 'delete') {
+          _messages.removeWhere((message) => message.id == record.id);
+          notifyListeners();
+          return;
         }
 
-        notifyListeners();
-      },
-      onError: (e) {
-        _error = e.toString();
-        _isLoadingRooms = false;
+        final message = ChatMessageModel.fromJson({
+          'id': record.id,
+          ...record.data,
+          'created': record.created,
+          'updated': record.updated,
+        });
+
+        final index = _messages.indexWhere((item) => item.id == message.id);
+
+        if (index == -1) {
+          _messages.add(message);
+        } else {
+          _messages[index] = message;
+        }
+
+        _sortMessages();
+
+        if (message.receiverId == currentUserId && !message.isRead) {
+          await markAsRead(message.id);
+        }
+
         notifyListeners();
       },
     );
   }
 
-  void listenMessages(String userId) {
-    _messageSub?.cancel();
+  Future<void> unsubscribe() async {
+    await _chatService.unsubscribeMessages();
+  }
 
-    _isLoadingMessages = true;
-    _error = null;
-    notifyListeners();
+  Future<void> markAsRead(String messageId) async {
+    try {
+      await _chatService.markAsRead(messageId);
 
-    _messageSub = _chatService
-        .getMessages(userId)
-        .listen(
-          (messages) {
-            _messages = messages;
-            _isLoadingMessages = false;
-            notifyListeners();
-          },
-          onError: (e) {
-            _error = e.toString();
-            _isLoadingMessages = false;
-            notifyListeners();
-          },
+      final index = _messages.indexWhere((message) => message.id == messageId);
+
+      if (index != -1) {
+        _messages[index] = _messages[index].copyWith(isRead: true);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('markAsRead error: $e');
+    }
+  }
+
+  Future<void> markAllAsRead({
+    required String currentUserId,
+    required String otherUserId,
+  }) async {
+    try {
+      await _chatService.markAllAsRead(
+        senderId: otherUserId,
+        receiverId: currentUserId,
+      );
+
+      for (int i = 0; i < _messages.length; i++) {
+        final item = _messages[i];
+
+        if (item.senderId == otherUserId &&
+            item.receiverId == currentUserId &&
+            !item.isRead) {
+          _messages[i] = item.copyWith(isRead: true);
+        }
+      }
+
+      await loadChatSummary(userId: currentUserId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('markAllAsRead error: $e');
+    }
+  }
+
+  Future<void> loadCustomerChatSummary({required String customerId}) async {
+    await loadChatSummary(userId: customerId);
+  }
+
+  Future<void> loadManagerChatSummary({required String managerId}) async {
+    await loadChatSummary(userId: managerId);
+  }
+
+  Future<void> loadChatSummary({required String userId}) async {
+    try {
+      final records = await _chatService.getUserChatRecords(userId: userId);
+
+      final Map<String, ChatRoomSummary> groupedRooms = {};
+      int unread = 0;
+
+      for (final record in records) {
+        final senderId = record.data['sender']?.toString() ?? '';
+        final receiverId = record.data['receiver']?.toString() ?? '';
+
+        if (senderId.isEmpty || receiverId.isEmpty) continue;
+
+        final otherUserId = senderId == userId ? receiverId : senderId;
+
+        if (otherUserId.isEmpty || otherUserId == userId) continue;
+
+        final isUnreadForMe =
+            receiverId == userId && record.data['isRead'] == false;
+
+        if (isUnreadForMe) unread++;
+
+        final created = DateTime.tryParse(record.created);
+        final content = record.data['content']?.toString() ?? '';
+
+        final oldRoom = groupedRooms[otherUserId];
+
+        final userInfo = _extractOtherUserInfo(
+          record: record,
+          otherUserId: otherUserId,
         );
-  }
 
-  void selectRoom(ChatRoomModel room) {
-    _selectedRoom = room;
-    listenMessages(room.userId);
-    notifyListeners();
-  }
+        if (oldRoom == null) {
+          groupedRooms[otherUserId] = ChatRoomSummary(
+            userId: otherUserId,
+            fullName: userInfo['fullName'] ?? 'Người dùng',
+            avatarUrl: userInfo['avatarUrl'] ?? '',
+            lastMessage: content,
+            lastTime: created,
+            unreadCount: isUnreadForMe ? 1 : 0,
+          );
+        } else {
+          final oldTime =
+              oldRoom.lastTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final newTime = created ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final shouldReplace = newTime.isAfter(oldTime);
 
-  void clearSelectedRoom() {
-    _selectedRoom = null;
-    _messages = [];
-    _messageSub?.cancel();
-    notifyListeners();
-  }
+          groupedRooms[otherUserId] = oldRoom.copyWith(
+            fullName: userInfo['fullName'] ?? oldRoom.fullName,
+            avatarUrl: userInfo['avatarUrl'] ?? oldRoom.avatarUrl,
+            lastMessage: shouldReplace ? content : oldRoom.lastMessage,
+            lastTime: shouldReplace ? created : oldRoom.lastTime,
+            unreadCount: oldRoom.unreadCount + (isUnreadForMe ? 1 : 0),
+          );
+        }
+      }
 
-  Future<void> sendTextMessage({
-    required String userId,
-    required String userName,
-    String? userAvatar,
-    required String senderId,
-    required String senderRole,
-    required String message,
-  }) async {
-    if (message.trim().isEmpty) return;
+      _rooms
+        ..clear()
+        ..addAll(groupedRooms.values);
 
-    try {
-      _isSending = true;
-      _error = null;
+      _rooms.sort((a, b) {
+        final aTime = a.lastTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.lastTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bTime.compareTo(aTime);
+      });
+
+      _unreadCount = unread;
+      _totalRooms = _rooms.length;
+
       notifyListeners();
-
-      await _chatService.sendTextMessage(
-        userId: userId,
-        userName: userName,
-        userAvatar: userAvatar,
-        senderId: senderId,
-        senderRole: senderRole,
-        message: message.trim(),
-      );
     } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isSending = false;
-      notifyListeners();
+      debugPrint('loadChatSummary error: $e');
     }
   }
 
-  Future<void> sendImageMessage({
-    required String userId,
-    required String userName,
-    String? userAvatar,
-    required String senderId,
-    required String senderRole,
-    required File imageFile,
-  }) async {
+  Future<String?> getManagerId() async {
     try {
-      _isSending = true;
-      _error = null;
-      notifyListeners();
-
-      await _chatService.sendImageMessage(
-        userId: userId,
-        userName: userName,
-        userAvatar: userAvatar,
-        senderId: senderId,
-        senderRole: senderRole,
-        imageFile: imageFile,
-      );
+      return await _chatService.getManagerId();
     } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isSending = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> markAsRead({
-    required String userId,
-    required String readerRole,
-  }) async {
-    try {
-      await _chatService.markAsRead(userId: userId, readerRole: readerRole);
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
-
-  Future<void> setOnlineStatus({
-    required String userId,
-    required String role,
-    required bool isOnline,
-  }) async {
-    try {
-      await _chatService.setOnlineStatus(
-        userId: userId,
-        role: role,
-        isOnline: isOnline,
-      );
-    } catch (_) {}
-  }
-
-  ChatRoomModel? getRoomById(String roomId) {
-    try {
-      return _rooms.firstWhere((room) => room.id == roomId);
-    } catch (_) {
+      debugPrint('getManagerId error: $e');
       return null;
     }
   }
 
-  void clearError() {
-    _error = null;
+  String getMessageStatusText({
+    required ChatMessageModel message,
+    required String currentUserId,
+  }) {
+    if (message.senderId != currentUserId) return '';
+
+    if (message.isRead) return 'Đã xem';
+
+    return 'Đã gửi';
+  }
+
+  bool isMessageMine({
+    required ChatMessageModel message,
+    required String currentUserId,
+  }) {
+    return message.senderId == currentUserId;
+  }
+
+  bool isMessageUnreadForMe({
+    required ChatMessageModel message,
+    required String currentUserId,
+  }) {
+    return message.receiverId == currentUserId && !message.isRead;
+  }
+
+  void clearMessages() {
+    _messages.clear();
     notifyListeners();
   }
 
-  @override
-  void dispose() {
-    _roomSub?.cancel();
-    _messageSub?.cancel();
-    super.dispose();
+  void clearRooms() {
+    _rooms.clear();
+    _unreadCount = 0;
+    _totalRooms = 0;
+    notifyListeners();
+  }
+
+  void clearAll() {
+    _messages.clear();
+    _rooms.clear();
+    _unreadCount = 0;
+    _totalRooms = 0;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void _sortMessages() {
+    _messages.sort((a, b) => a.created.compareTo(b.created));
+  }
+
+  Map<String, String> _extractOtherUserInfo({
+    required RecordModel record,
+    required String otherUserId,
+  }) {
+    try {
+      final expand = record.expand;
+
+      RecordModel? userRecord;
+
+      final senderId = record.data['sender']?.toString() ?? '';
+      final receiverId = record.data['receiver']?.toString() ?? '';
+
+      if (senderId == otherUserId &&
+          expand['sender'] != null &&
+          expand['sender']!.isNotEmpty) {
+        userRecord = expand['sender']!.first;
+      } else if (receiverId == otherUserId &&
+          expand['receiver'] != null &&
+          expand['receiver']!.isNotEmpty) {
+        userRecord = expand['receiver']!.first;
+      }
+
+      if (userRecord == null) {
+        return {'fullName': 'Người dùng', 'avatarUrl': ''};
+      }
+
+      final data = userRecord.data;
+
+      final fullName = data['fullName']?.toString() ?? 'Người dùng';
+      final avatarFile = data['avatar']?.toString() ?? '';
+
+      String avatarUrl = '';
+
+      if (avatarFile.isNotEmpty) {
+        avatarUrl =
+            '${pb.baseUrl}/api/files/users/${userRecord.id}/$avatarFile';
+      }
+
+      return {'fullName': fullName, 'avatarUrl': avatarUrl};
+    } catch (_) {
+      return {'fullName': 'Người dùng', 'avatarUrl': ''};
+    }
   }
 }

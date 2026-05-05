@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
-import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/routes/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -135,7 +135,7 @@ class _SplashScreenState extends State<SplashScreen> {
                               'Liên hệ 0762 851 111',
                               maxLines: 1,
                               style: TextStyle(
-                                fontSize: screenWidth * 0.025,
+                                fontSize: screenWidth * 0.026,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white.withValues(alpha: 0.95),
                               ),

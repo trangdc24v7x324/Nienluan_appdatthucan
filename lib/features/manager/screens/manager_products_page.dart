@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:ct484tx_project_trangdc24v7x324/models/product_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/features/manager/screens/product_form_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/product_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/features/manager/screens/product_form_page.dart';
+import 'package:CT466_project_trangdc24v7x324/models/product_model.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/product_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
 
 class ManagerProductsPage extends StatefulWidget {
   const ManagerProductsPage({super.key});
@@ -16,73 +18,48 @@ class _ManagerProductsPageState extends State<ManagerProductsPage> {
   @override
   void initState() {
     super.initState();
-
-    Future.microtask(() async {
-      final provider = context.read<ProductProvider>();
-      await provider.fetchCategories();
-      await provider.fetchProducts();
-    });
+    Future.microtask(() => context.read<ProductProvider>().loadInitialData());
   }
 
   Future<void> _refreshData() async {
-    final provider = context.read<ProductProvider>();
-    await provider.fetchCategories();
-    await provider.fetchProducts();
+    await context.read<ProductProvider>().loadInitialData();
   }
 
-  String formatPrice(double price) {
-    final int value = price.round();
-    final String text = value.toString();
-    final StringBuffer result = StringBuffer();
+  String _formatPrice(double price) {
+    final value = price.round().toString();
+    final buffer = StringBuffer();
 
-    for (int i = 0; i < text.length; i++) {
-      final int positionFromEnd = text.length - i;
-      result.write(text[i]);
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        result.write('.');
+    for (int i = 0; i < value.length; i++) {
+      buffer.write(value[i]);
+      final remaining = value.length - i - 1;
+      if (remaining > 0 && remaining % 3 == 0) {
+        buffer.write('.');
       }
     }
 
-    return '${result.toString()}đ';
-  }
-
-  String getCategoryTitle(String slug) {
-    final categories = context.read<ProductProvider>().categories;
-
-    try {
-      return categories.firstWhere((c) => c.slug == slug).title;
-    } catch (_) {
-      return slug.isEmpty ? 'Khác' : slug;
-    }
+    return '${buffer}đ';
   }
 
   Future<void> _openCreatePage() async {
-    final result = await Navigator.push(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const ProductFormPage()),
     );
 
     if (result == true && mounted) {
-      await context.read<ProductProvider>().fetchProducts();
+      await context.read<ProductProvider>().loadProducts();
     }
   }
 
   Future<void> _openEditPage(ProductModel product) async {
-    final result = await Navigator.push(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => ProductFormPage(product: product)),
     );
 
     if (result == true && mounted) {
-      await context.read<ProductProvider>().fetchProducts();
+      await context.read<ProductProvider>().loadProducts();
     }
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _confirmDelete(ProductModel product) async {
@@ -115,16 +92,21 @@ class _ManagerProductsPageState extends State<ManagerProductsPage> {
 
     if (confirm != true) return;
 
-    try {
-      await context.read<ProductProvider>().deleteProduct(product.id);
-      _showMessage('Đã xóa sản phẩm');
-    } catch (_) {
-      _showMessage('Xóa sản phẩm thất bại');
-    }
+    final success = await context.read<ProductProvider>().deleteProduct(
+      product.id,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? 'Đã xóa sản phẩm' : 'Xóa sản phẩm thất bại'),
+      ),
+    );
   }
 
   Widget _buildBody(ProductProvider provider) {
-    if (provider.isLoading) {
+    if (provider.isLoading && provider.products.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: Color(0xFFEF2A39)),
       );
@@ -134,19 +116,9 @@ class _ManagerProductsPageState extends State<ManagerProductsPage> {
       return RefreshIndicator(
         onRefresh: _refreshData,
         child: ListView(
-          padding: const EdgeInsets.all(16),
           children: const [
             SizedBox(height: 220),
-            Center(
-              child: Text(
-                'Chưa có sản phẩm',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+            Center(child: Text('Chưa có sản phẩm')),
           ],
         ),
       );
@@ -154,35 +126,22 @@ class _ManagerProductsPageState extends State<ManagerProductsPage> {
 
     return RefreshIndicator(
       onRefresh: _refreshData,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final horizontalPadding = constraints.maxWidth >= 700 ? 24.0 : 16.0;
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+        itemCount: provider.products.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, index) {
+          final product = provider.products[index];
 
-          return ListView.separated(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              20,
-              horizontalPadding,
-              88,
-            ),
-            itemCount: provider.products.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (_, index) {
-              final product = provider.products[index];
-
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: _ProductCard(
-                    product: product,
-                    categoryTitle: getCategoryTitle(product.category),
-                    priceText: formatPrice(product.price),
-                    onEdit: () => _openEditPage(product),
-                    onDelete: () => _confirmDelete(product),
-                  ),
-                ),
-              );
-            },
+          return _ProductCard(
+            product: product,
+            categoryTitle:
+                product.categoryTitle.trim().isEmpty
+                    ? 'Khác'
+                    : product.categoryTitle,
+            priceText: _formatPrice(product.price),
+            onEdit: () => _openEditPage(product),
+            onDelete: () => _confirmDelete(product),
           );
         },
       ),
@@ -193,89 +152,15 @@ class _ManagerProductsPageState extends State<ManagerProductsPage> {
   Widget build(BuildContext context) {
     final provider = context.watch<ProductProvider>();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFEF2A39),
+    return AppLayout(
+      title: 'Quản lý sản phẩm',
+      showBack: true,
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFFEF2A39),
         onPressed: _openCreatePage,
         child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: Column(
-        children: [
-          const _ManagerHeader(title: 'Quản lý sản phẩm'),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF7F7F7),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-              ),
-              child: _buildBody(provider),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ManagerHeader extends StatelessWidget {
-  final String title;
-
-  const _ManagerHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isSmall = width < 380;
-
-    return SafeArea(
-      bottom: false,
-      child: Container(
-        width: double.infinity,
-        color: const Color(0xFFEF2A39),
-        padding: EdgeInsets.fromLTRB(
-          isSmall ? 12 : 14,
-          12,
-          isSmall ? 12 : 14,
-          16,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 21,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isSmall ? 17 : 19,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 44, height: 44),
-              ],
-            ),
-          ),
-        ),
-      ),
+      child: AppBody(child: _buildBody(provider)),
     );
   }
 }
@@ -304,7 +189,7 @@ class _ProductCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -314,10 +199,9 @@ class _ProductCard extends StatelessWidget {
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _ProductImage(imageUrl: product.image, size: isSmall ? 72 : 84),
-          SizedBox(width: isSmall ? 10 : 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,32 +210,16 @@ class _ProductCard extends StatelessWidget {
                   product.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isSmall ? 15 : 16,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF2D2D2D),
-                    height: 1.2,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  categoryTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isSmall ? 12.5 : 13,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
+                Text(categoryTitle, style: const TextStyle(color: Colors.grey)),
+                const SizedBox(height: 4),
                 Text(
                   priceText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: const Color(0xFFEF2A39),
-                    fontSize: isSmall ? 14 : 15,
-                    fontWeight: FontWeight.w800,
+                  style: const TextStyle(
+                    color: Color(0xFFEF2A39),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -359,18 +227,16 @@ class _ProductCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 4),
           Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               _CircleIconButton(
-                icon: Icons.edit_outlined,
+                icon: Icons.edit,
                 color: Colors.indigo,
                 onTap: onEdit,
               ),
               const SizedBox(height: 8),
               _CircleIconButton(
-                icon: Icons.delete_outline,
+                icon: Icons.delete,
                 color: Colors.red,
                 onTap: onDelete,
               ),
@@ -395,18 +261,17 @@ class _ProductImage extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
       child:
           imageUrl.isNotEmpty
               ? ClipRRect(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 child: Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
-                    return const Icon(Icons.fastfood_rounded);
-                  },
+                  errorBuilder:
+                      (_, __, ___) => const Icon(Icons.fastfood_rounded),
                 ),
               )
               : const Icon(Icons.fastfood_rounded),
@@ -424,18 +289,14 @@ class _StatusChip extends StatelessWidget {
     final color = isAvailable ? Colors.green : Colors.red;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         isAvailable ? 'Đang bán' : 'Ngừng bán',
-        style: TextStyle(
-          fontSize: 11.5,
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: color, fontSize: 12),
       ),
     );
   }
@@ -454,17 +315,13 @@ class _CircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: color.withOpacity(0.08),
+    return InkWell(
       borderRadius: BorderRadius.circular(99),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(99),
-        onTap: onTap,
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(icon, color: color, size: 21),
-        ),
+      onTap: onTap,
+      child: CircleAvatar(
+        radius: 18,
+        backgroundColor: color.withOpacity(0.1),
+        child: Icon(icon, color: color, size: 18),
       ),
     );
   }

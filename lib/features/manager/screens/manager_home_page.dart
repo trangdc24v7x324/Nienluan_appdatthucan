@@ -1,12 +1,12 @@
-import 'package:ct484tx_project_trangdc24v7x324/features/manager/screens/manager_categories_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/features/manager/screens/manager_products_page.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/chat_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/providers/profile_provider.dart';
-import 'package:ct484tx_project_trangdc24v7x324/routes/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/chat_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/order_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/profile_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/routes/app_routes.dart';
 
 class ManagerHomePage extends StatefulWidget {
   const ManagerHomePage({super.key});
@@ -19,96 +19,35 @@ class _ManagerHomePageState extends State<ManagerHomePage> {
   @override
   void initState() {
     super.initState();
-
-    Future.microtask(() {
-      _loadData();
-      context.read<ChatProvider>().listenChatRooms();
-    });
+    Future.microtask(_loadData);
   }
 
   Future<void> _loadData() async {
     await context.read<OrderProvider>().loadAllOrders();
     await context.read<ProfileProvider>().loadProfile(forceReload: true);
-  }
 
-  void _openPage(Widget page) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    final managerId = pb.authStore.model?.id;
+    if (managerId != null && managerId.isNotEmpty) {
+      await context.read<ChatProvider>().loadManagerChatSummary(
+        managerId: managerId,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final orderProvider = context.watch<OrderProvider>();
-    final profileProvider = context.watch<ProfileProvider>();
-    final chatProvider = context.watch<ChatProvider>();
+    final order = context.watch<OrderProvider>();
+    final chat = context.watch<ChatProvider>();
+    final profile = context.watch<ProfileProvider>();
 
-    final avatarUrl = profileProvider.profile?.avatarUrl;
-
-    final actions = [
-      _ManagerActionData(
-        icon: Icons.category_rounded,
-        title: 'Quản lý danh mục',
-        subtitle: 'Thêm, sửa, xóa danh mục sản phẩm',
-        color: const Color(0xFFF3F0FF),
-        iconColor: Colors.deepPurple,
-        onTap: () => _openPage(const ManagerCategoriesPage()),
-      ),
-      _ManagerActionData(
-        icon: Icons.fastfood_rounded,
-        title: 'Quản lý sản phẩm',
-        subtitle: 'Thêm, sửa, xóa và cập nhật sản phẩm',
-        color: const Color(0xFFFFEEF0),
-        iconColor: const Color(0xFFEF2A39),
-        onTap: () => _openPage(const ManagerProductsPage()),
-      ),
-
-      _ManagerActionData(
-        icon: Icons.receipt_long_rounded,
-        title: 'Quản lý đơn hàng',
-        subtitle: 'Xem, lọc và xử lý đơn hàng của khách',
-        color: const Color(0xFFF0F3FF),
-        iconColor: Colors.indigo,
-        badgeCount: orderProvider.pendingOrderCount,
-        onTap: () => Navigator.pushNamed(context, AppRoutes.managerOrders),
-      ),
-      _ManagerActionData(
-        icon: Icons.bar_chart_rounded,
-        title: 'Doanh thu',
-        subtitle: 'Tổng hợp số lượng đơn và số tiền bán hàng',
-        color: const Color(0xFFEFFFF3),
-        iconColor: Colors.green,
-        onTap: () => Navigator.pushNamed(context, AppRoutes.managerRevenue),
-      ),
-      _ManagerActionData(
-        icon: Icons.chat_bubble_rounded,
-        title: 'Chat phản hồi',
-        subtitle:
-            chatProvider.totalRooms > 0
-                ? '${chatProvider.totalRooms} cuộc trò chuyện với khách hàng'
-                : 'Xem và phản hồi tin nhắn từ khách hàng',
-        color: const Color(0xFFEFF5FF),
-        iconColor:
-            chatProvider.unreadCount > 0
-                ? const Color(0xFFEF2A39)
-                : Colors.blue,
-        badgeCount: chatProvider.unreadCount,
-        onTap: () => Navigator.pushNamed(context, AppRoutes.managerChat),
-      ),
-      _ManagerActionData(
-        icon: Icons.notifications_active_rounded,
-        title: 'Tạo thông báo',
-        subtitle: 'Gửi thông báo khuyến mãi hoặc cập nhật mới',
-        color: const Color(0xFFFFF6E8),
-        iconColor: Colors.orange,
-        onTap:
-            () => Navigator.pushNamed(context, AppRoutes.managerNotifications),
-      ),
-    ];
+    final avatarUrl = profile.profile?.avatarUrl ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFEF2A39),
+      backgroundColor: const Color(0xffFF8A95),
+      bottomNavigationBar: const _BottomRedDecor(),
       body: Column(
         children: [
-          _ManagerHeader(avatarUrl: avatarUrl),
+          _HeaderSection(avatarUrl: avatarUrl),
           Expanded(
             child: Container(
               width: double.infinity,
@@ -118,56 +57,96 @@ class _ManagerHomePageState extends State<ManagerHomePage> {
               ),
               child: RefreshIndicator(
                 onRefresh: _loadData,
-                child: SafeArea(
-                  top: false,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.maxWidth;
-                      final horizontalPadding = width >= 700 ? 24.0 : 16.0;
-
-                      return ListView(
-                        padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
-                          20,
-                          horizontalPadding,
-                          28,
-                        ),
-                        children: [
-                          Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 760),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _DashboardGrid(
-                                    pending: orderProvider.pendingOrderCount,
-                                    completed:
-                                        orderProvider.completedOrderCount,
-                                    unread: chatProvider.unreadCount,
-                                    totalRooms: chatProvider.totalRooms,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  const Text(
-                                    'Chức năng quản lý',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF2D2D2D),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  ...actions.map(
-                                    (action) =>
-                                        _ManagerActionCard(data: action),
-                                  ),
-                                ],
-                              ),
-                            ),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                  children: [
+                    _DashboardGrid(
+                      pending: order.pendingOrderCount,
+                      completed: order.completedOrderCount,
+                      unread: chat.unreadCount,
+                      totalRooms: chat.totalRooms,
+                    ),
+                    const SizedBox(height: 22),
+                    const Text(
+                      'Chức năng quản lý',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _ActionCard(
+                      icon: Icons.category,
+                      title: 'Danh mục',
+                      subtitle: 'Quản lý danh mục sản phẩm',
+                      color: Colors.orange,
+                      onTap:
+                          () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.managerCategories,
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                    ),
+                    _ActionCard(
+                      icon: Icons.fastfood,
+                      title: 'Sản phẩm',
+                      subtitle: 'Quản lý sản phẩm',
+                      color: Colors.red,
+                      onTap:
+                          () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.managerProducts,
+                          ),
+                    ),
+                    _ActionCard(
+                      icon: Icons.receipt_long,
+                      title: 'Đơn hàng',
+                      subtitle: 'Quản lý đơn hàng',
+                      badge: order.pendingOrderCount,
+                      color: Colors.blue,
+                      onTap:
+                          () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.managerOrders,
+                          ),
+                    ),
+                    _ActionCard(
+                      icon: Icons.bar_chart,
+                      title: 'Doanh thu',
+                      subtitle: 'Thống kê doanh thu',
+                      color: Colors.green,
+                      onTap:
+                          () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.managerRevenue,
+                          ),
+                    ),
+                    _ActionCard(
+                      icon: Icons.chat_bubble,
+                      title: 'Chat khách hàng',
+                      subtitle:
+                          chat.totalRooms > 0
+                              ? '${chat.totalRooms} cuộc trò chuyện'
+                              : 'Chưa có cuộc trò chuyện',
+                      badge: chat.unreadCount,
+                      color: Colors.purple,
+                      onTap:
+                          () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.managerChat,
+                          ),
+                    ),
+                    _ActionCard(
+                      icon: Icons.notifications,
+                      title: 'Thông báo',
+                      subtitle: 'Gửi thông báo',
+                      color: Colors.teal,
+                      onTap:
+                          () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.managerNotifications,
+                          ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -178,100 +157,82 @@ class _ManagerHomePageState extends State<ManagerHomePage> {
   }
 }
 
-class _ManagerHeader extends StatelessWidget {
-  final String? avatarUrl;
+class _HeaderSection extends StatelessWidget {
+  final String avatarUrl;
 
-  const _ManagerHeader({required this.avatarUrl});
+  const _HeaderSection({required this.avatarUrl});
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isSmall = width < 380;
+    final isSmall = MediaQuery.sizeOf(context).width < 380;
 
     return SafeArea(
       bottom: false,
       child: Container(
         width: double.infinity,
-        color: const Color(0xFFEF2A39),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xffFF8A95), Color(0xffFF3D4F), Color(0xffD91F2D)],
+          ),
+        ),
         padding: EdgeInsets.fromLTRB(
           isSmall ? 16 : 18,
           12,
           isSmall ? 16 : 18,
-          16,
+          18,
         ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Row(
-              children: [
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'YourFood',
-                          style: GoogleFonts.lobster(
-                            fontSize: isSmall ? 26 : 30,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Bảng điều khiển quản lý',
-                          style: TextStyle(
-                            fontSize: isSmall ? 13 : 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.84),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
-                  child: Container(
-                    width: isSmall ? 42 : 46,
-                    height: isSmall ? 42 : 46,
-                    decoration: BoxDecoration(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'YourFood',
+                    style: GoogleFonts.lobster(
+                      fontSize: isSmall ? 28 : 32,
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white, width: 2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.18),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child:
-                          avatarUrl != null && avatarUrl!.isNotEmpty
-                              ? Image.network(
-                                avatarUrl!,
-                                fit: BoxFit.cover,
-                                errorBuilder:
-                                    (_, __, ___) => const Icon(
-                                      Icons.person_outline,
-                                      color: Colors.grey,
-                                    ),
-                              )
-                              : const Icon(
-                                Icons.person_outline,
-                                color: Colors.grey,
-                              ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Bảng điều khiển quản lý',
+                    style: TextStyle(
+                      fontSize: isSmall ? 13 : 14,
+                      color: Colors.white.withOpacity(0.85),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+              child: Container(
+                width: isSmall ? 44 : 48,
+                height: isSmall ? 44 : 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child:
+                      avatarUrl.isNotEmpty
+                          ? Image.network(
+                            avatarUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) => const Icon(
+                                  Icons.person,
+                                  color: Colors.grey,
+                                ),
+                          )
+                          : const Icon(Icons.person, color: Colors.grey),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -293,134 +254,98 @@ class _DashboardGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cards = [
-      _DashboardCard(
+    final items = [
+      _DashboardItem(
         title: 'Đơn xử lý',
-        value: pending.toString(),
-        icon: Icons.pending_actions_rounded,
+        value: pending,
         color: Colors.orange,
+        icon: Icons.pending_actions,
       ),
-      _DashboardCard(
+      _DashboardItem(
         title: 'Hoàn thành',
-        value: completed.toString(),
-        icon: Icons.check_circle_outline_rounded,
+        value: completed,
         color: Colors.green,
+        icon: Icons.check_circle,
       ),
-      _DashboardCard(
+      _DashboardItem(
         title: 'Tin chưa đọc',
-        value: unread.toString(),
-        icon: Icons.mark_chat_unread_rounded,
+        value: unread,
         color: Colors.blue,
+        icon: Icons.mark_chat_unread,
       ),
-      _DashboardCard(
+      _DashboardItem(
         title: 'Cuộc chat',
-        value: totalRooms.toString(),
-        icon: Icons.forum_rounded,
+        value: totalRooms,
         color: Colors.purple,
+        icon: Icons.chat,
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 560;
-        final crossAxisCount = isWide ? 4 : 2;
-        final itemWidth =
-            (constraints.maxWidth - (12 * (crossAxisCount - 1))) /
-            crossAxisCount;
-
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children:
-              cards
-                  .map((card) => SizedBox(width: itemWidth, child: card))
-                  .toList(),
-        );
-      },
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children:
+          items.map((item) {
+            return SizedBox(
+              width: (MediaQuery.of(context).size.width - 44) / 2,
+              child: item,
+            );
+          }).toList(),
     );
   }
 }
 
-class _ManagerActionData {
-  final IconData icon;
+class _DashboardItem extends StatelessWidget {
   final String title;
-  final String subtitle;
+  final int value;
   final Color color;
-  final Color iconColor;
-  final VoidCallback onTap;
-  final int badgeCount;
-
-  const _ManagerActionData({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.iconColor,
-    required this.onTap,
-    this.badgeCount = 0,
-  });
-}
-
-class _DashboardCard extends StatelessWidget {
-  final String title;
-  final String value;
   final IconData icon;
-  final Color color;
 
-  const _DashboardCard({
+  const _DashboardItem({
     required this.title,
     required this.value,
-    required this.icon,
     required this.color,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isSmall = width < 380;
-
     return Container(
-      constraints: const BoxConstraints(minHeight: 82),
-      padding: EdgeInsets.all(isSmall ? 10 : 12),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          _IconBox(
-            icon: icon,
-            color: color,
-            size: isSmall ? 40 : 44,
-            iconSize: isSmall ? 22 : 25,
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.12),
+            child: Icon(icon, color: color),
           ),
-          SizedBox(width: isSmall ? 8 : 10),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF2D2D2D),
-                    ),
+                Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   title,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: isSmall ? 11.5 : 12.5,
-                    color: Colors.grey.shade700,
-                    fontWeight: FontWeight.w500,
-                    height: 1.15,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
@@ -431,74 +356,88 @@ class _DashboardCard extends StatelessWidget {
   }
 }
 
-class _ManagerActionCard extends StatelessWidget {
-  final _ManagerActionData data;
+class _ActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final int badge;
+  final VoidCallback onTap;
 
-  const _ManagerActionCard({required this.data});
+  const _ActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+    this.badge = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final hasBadge = data.badgeCount > 0;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.transparent,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: data.onTap,
-          child: Ink(
-            padding: const EdgeInsets.all(15),
-            decoration: _cardDecoration(radius: 20),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    _IconBox(
-                      icon: data.icon,
-                      color: data.iconColor,
-                      backgroundColor: data.color,
-                      size: 54,
-                      iconSize: 29,
-                    ),
-                    if (hasBadge) _Badge(count: data.badgeCount),
-                  ],
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: color.withOpacity(0.12),
+                  child: Icon(icon, color: color),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        data.title,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15.8,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF2D2D2D),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          if (badge > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF2A39),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                '$badge',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        data.subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.8,
-                          color: Colors.grey.shade700,
-                          height: 1.35,
-                        ),
+                        subtitle,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 17,
-                  color: Colors.grey.shade400,
-                ),
+                const Icon(Icons.chevron_right_rounded, color: Colors.grey),
               ],
             ),
           ),
@@ -508,79 +447,11 @@ class _ManagerActionCard extends StatelessWidget {
   }
 }
 
-class _IconBox extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final Color? backgroundColor;
-  final double size;
-  final double iconSize;
-
-  const _IconBox({
-    required this.icon,
-    required this.color,
-    this.backgroundColor,
-    this.size = 44,
-    this.iconSize = 25,
-  });
+class _BottomRedDecor extends StatelessWidget {
+  const _BottomRedDecor();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(icon, color: color, size: iconSize),
-    );
+    return Container(height: 0, color: const Color(0xFFEF2A39));
   }
-}
-
-class _Badge extends StatelessWidget {
-  final int count;
-
-  const _Badge({required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      right: -5,
-      top: -6,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-        padding: const EdgeInsets.symmetric(horizontal: 5),
-        decoration: BoxDecoration(
-          color: const Color(0xFFEF2A39),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: Colors.white, width: 2),
-        ),
-        child: Center(
-          child: Text(
-            count > 99 ? '99+' : count.toString(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10.5,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-BoxDecoration _cardDecoration({double radius = 18}) {
-  return BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(radius),
-    border: Border.all(color: Colors.grey.shade100),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.045),
-        blurRadius: 12,
-        offset: const Offset(0, 5),
-      ),
-    ],
-  );
 }

@@ -1,13 +1,14 @@
-import 'package:ct484tx_project_trangdc24v7x324/core/pocketbase_client.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/cart_item_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/models/order_model.dart';
-import 'package:ct484tx_project_trangdc24v7x324/services/notification_service.dart';
+import 'package:CT466_project_trangdc24v7x324/core/pocketbase_client.dart';
+import 'package:CT466_project_trangdc24v7x324/models/cart_item_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/order_item_model.dart';
+import 'package:CT466_project_trangdc24v7x324/models/order_model.dart';
+import 'package:CT466_project_trangdc24v7x324/services/notification_service.dart';
 
 class OrderService {
   final NotificationService _notificationService = NotificationService();
 
   Future<void> createOrder({
-    required List<CartItem> items,
+    required List<CartItemModel> items,
     required double totalAmount,
     required String receiverName,
     required String receiverPhone,
@@ -21,55 +22,73 @@ class OrderService {
       throw Exception('Chưa đăng nhập');
     }
 
+    if (items.isEmpty) {
+      throw Exception('Giỏ hàng đang trống');
+    }
+
+    final subtotal = items.fold<double>(0, (sum, item) => sum + item.subtotal);
+
     final orderRecord = await pb
         .collection('orders')
         .create(
           body: {
             'user': authUser.id,
-            'receiver_name': receiverName,
-            'receiver_phone': receiverPhone,
-            'delivery_address': deliveryAddress,
-            'payment_method': paymentMethod,
-            'payment_status': paymentMethod == 'Tiền mặt' ? 'unpaid' : 'paid',
+            'receiver_name': receiverName.trim(),
+            'receiver_phone': receiverPhone.trim(),
+            'delivery_address': deliveryAddress.trim(),
+            'payment_method': paymentMethod.trim(),
+            'payment_status': _getInitialPaymentStatus(paymentMethod),
             'order_status': 'placed',
-            'note': note,
-            'cancel_reason': '',
-            'subtotal': totalAmount,
+            'subtotal': subtotal,
             'delivery_fee': 0,
             'discount_amount': 0,
             'total_amount': totalAmount,
+            'note': note.trim(),
+            'cancel_reason': '',
           },
         );
 
     for (final item in items) {
-      await pb
-          .collection('order_items')
-          .create(
-            body: {
-              'order': orderRecord.id,
-              'product': item.productId,
-              'product_name': item.title,
-              'product_image': item.image,
-              'unit_price': item.price,
-              'quantity': item.quantity,
-              'subtotal': item.price * item.quantity,
+      final body = <String, dynamic>{
+        'order': orderRecord.id,
+        'product': item.productId,
+        'product_name': item.title,
+        'product_image': item.image,
+        'unit_price': item.price,
+        'quantity': item.quantity,
+        'subtotal': item.subtotal,
+        'note': '',
+        'category_title': item.categoryTitle,
+        'category_slug': item.categorySlug,
+      };
 
-              // category snapshot
-              'category': item.categoryId,
-              'category_title': item.categoryTitle,
-              'category_slug': item.categorySlug,
-            },
-          );
+      if (item.categoryId.trim().isNotEmpty) {
+        body['category'] = item.categoryId;
+      }
+
+      await pb.collection('order_items').create(body: body);
     }
 
-    await _notificationService.create(
-      title: 'Đặt hàng thành công',
-      body: 'Đơn hàng của bạn đã được tạo thành công.',
-      type: 'order_success',
-      targetRole: 'personal',
-      targetUser: authUser.id,
-      orderId: orderRecord.id,
-    );
+    try {
+      await _notificationService.create(
+        title: 'Đặt hàng thành công',
+        body: 'Đơn hàng của bạn đã được tạo thành công.',
+        type: 'order_success',
+        targetRole: 'personal',
+        targetUser: authUser.id,
+        orderId: orderRecord.id,
+      );
+
+      await _notificationService.create(
+        title: 'Có đơn hàng mới',
+        body: 'Một khách hàng vừa đặt đơn hàng mới.',
+        type: 'new_order',
+        targetRole: 'manager',
+        orderId: orderRecord.id,
+      );
+    } catch (e) {
+      print('Tạo đơn thành công nhưng tạo thông báo lỗi: $e');
+    }
   }
 
   Future<List<OrderModel>> fetchMyOrders() async {
@@ -83,63 +102,115 @@ class OrderService {
         .collection('orders')
         .getFullList(filter: 'user = "${authUser.id}"', sort: '-created');
 
+    return _mapOrderRecords(orderRecords);
+  }
+
+  Future<List<OrderModel>> fetchAllOrders() async {
+    final orderRecords = await pb
+        .collection('orders')
+        .getFullList(sort: '-created');
+
+    return _mapOrderRecords(orderRecords);
+  }
+
+  Future<OrderModel> fetchOrderDetail(String orderId) async {
+    final orderRecord = await pb.collection('orders').getOne(orderId);
+
+    final items = await _fetchOrderItems(orderId);
+
+    return OrderModel.fromJson({
+      'id': orderRecord.id,
+      ...orderRecord.data,
+      'created': orderRecord.created,
+      'updated': orderRecord.updated,
+    }, items: items);
+  }
+
+  Future<void> updateOrderStatus({
+    required String orderId,
+    required String status,
+    String cancelReason = '',
+  }) async {
+    final body = {'order_status': status};
+
+    if (status == 'cancelled') {
+      body['cancel_reason'] = cancelReason.trim();
+    }
+
+    final order = await pb.collection('orders').update(orderId, body: body);
+
+    final userId = (order.data['user'] ?? '').toString();
+
+    if (userId.isEmpty) return;
+
+    await _createOrderStatusNotification(
+      userId: userId,
+      orderId: orderId,
+      status: status,
+    );
+  }
+
+  Future<void> updatePaymentStatus({
+    required String orderId,
+    required String paymentStatus,
+  }) async {
+    await pb
+        .collection('orders')
+        .update(orderId, body: {'payment_status': paymentStatus});
+  }
+
+  Future<List<OrderModel>> _mapOrderRecords(List<dynamic> orderRecords) async {
     final List<OrderModel> orders = [];
 
-    for (final order in orderRecords) {
-      final data = order.data;
-
-      final itemRecords = await pb
-          .collection('order_items')
-          .getFullList(filter: 'order = "${order.id}"', sort: 'created');
-
-      final items =
-          itemRecords.map((itemRecord) {
-            final item = itemRecord.data;
-
-            return CartItem(
-              productId: (item['product'] ?? '').toString(),
-              title: (item['product_name'] ?? '').toString(),
-              image: (item['product_image'] ?? '').toString(),
-              price: ((item['unit_price'] ?? 0) as num).toDouble(),
-              quantity: ((item['quantity'] ?? 1) as num).toInt(),
-
-              categoryId: (item['category'] ?? '').toString(),
-              categoryTitle: (item['category_title'] ?? 'Khác').toString(),
-              categorySlug: (item['category_slug'] ?? 'khac').toString(),
-            );
-          }).toList();
+    for (final orderRecord in orderRecords) {
+      final items = await _fetchOrderItems(orderRecord.id);
 
       orders.add(
-        OrderModel(
-          id: order.id,
-          items: items,
-          totalAmount: ((data['total_amount'] ?? 0) as num).toDouble(),
-          orderDate: DateTime.tryParse(order.created) ?? DateTime.now(),
-          status: (data['order_status'] ?? 'placed').toString(),
-          receiverName: (data['receiver_name'] ?? '').toString(),
-          receiverPhone: (data['receiver_phone'] ?? '').toString(),
-          address: (data['delivery_address'] ?? '').toString(),
-          paymentMethod: (data['payment_method'] ?? '').toString(),
-          note: (data['note'] ?? '').toString(),
-        ),
+        OrderModel.fromJson({
+          'id': orderRecord.id,
+          ...orderRecord.data,
+          'created': orderRecord.created,
+          'updated': orderRecord.updated,
+        }, items: items),
       );
     }
 
     return orders;
   }
 
-  Future<void> updateOrderStatus({
+  Future<List<OrderItemModel>> _fetchOrderItems(String orderId) async {
+    final itemRecords = await pb
+        .collection('order_items')
+        .getFullList(filter: 'order = "$orderId"', sort: 'created');
+
+    return itemRecords.map((record) {
+      return OrderItemModel.fromJson({
+        'id': record.id,
+        ...record.data,
+        'created': record.created,
+        'updated': record.updated,
+      });
+    }).toList();
+  }
+
+  String _getInitialPaymentStatus(String paymentMethod) {
+    final value = paymentMethod.toLowerCase().trim();
+
+    if (value == 'cash' ||
+        value == 'tiền mặt' ||
+        value == 'tien mat' ||
+        value.contains('cash')) {
+      return 'unpaid';
+    }
+
+    return 'paid';
+  }
+
+  Future<void> _createOrderStatusNotification({
+    required String userId,
     required String orderId,
     required String status,
   }) async {
-    final order = await pb
-        .collection('orders')
-        .update(orderId, body: {'order_status': status});
-
-    final userId = (order.data['user'] ?? '').toString();
-
-    if (userId.isEmpty) return;
-
     if (status == 'confirmed') {
       await _notificationService.create(
         title: 'Đơn hàng đã được xác nhận',
@@ -186,55 +257,5 @@ class OrderService {
         orderId: orderId,
       );
     }
-  }
-
-  Future<List<OrderModel>> fetchAllOrders() async {
-    final orderRecords = await pb
-        .collection('orders')
-        .getFullList(sort: '-created');
-
-    final List<OrderModel> orders = [];
-
-    for (final order in orderRecords) {
-      final data = order.data;
-
-      final itemRecords = await pb
-          .collection('order_items')
-          .getFullList(filter: 'order = "${order.id}"', sort: 'created');
-
-      final items =
-          itemRecords.map((itemRecord) {
-            final item = itemRecord.data;
-
-            return CartItem(
-              productId: (item['product'] ?? '').toString(),
-              title: (item['product_name'] ?? '').toString(),
-              image: (item['product_image'] ?? '').toString(),
-              price: ((item['unit_price'] ?? 0) as num).toDouble(),
-              quantity: ((item['quantity'] ?? 1) as num).toInt(),
-
-              categoryId: (item['category'] ?? '').toString(),
-              categoryTitle: (item['category_title'] ?? 'Khác').toString(),
-              categorySlug: (item['category_slug'] ?? 'khac').toString(),
-            );
-          }).toList();
-
-      orders.add(
-        OrderModel(
-          id: order.id,
-          items: items,
-          totalAmount: ((data['total_amount'] ?? 0) as num).toDouble(),
-          orderDate: DateTime.tryParse(order.created) ?? DateTime.now(),
-          status: (data['order_status'] ?? 'placed').toString(),
-          receiverName: (data['receiver_name'] ?? '').toString(),
-          receiverPhone: (data['receiver_phone'] ?? '').toString(),
-          address: (data['delivery_address'] ?? '').toString(),
-          paymentMethod: (data['payment_method'] ?? '').toString(),
-          note: (data['note'] ?? '').toString(),
-        ),
-      );
-    }
-
-    return orders;
   }
 }

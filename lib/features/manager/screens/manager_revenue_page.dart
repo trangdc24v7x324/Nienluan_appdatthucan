@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:ct484tx_project_trangdc24v7x324/providers/order_provider.dart';
-
-enum RevenueFilterType { today, week, month, custom }
+import 'package:CT466_project_trangdc24v7x324/models/order_model.dart';
+import 'package:CT466_project_trangdc24v7x324/providers/order_provider.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
+import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
 
 class ManagerRevenuePage extends StatefulWidget {
   const ManagerRevenuePage({super.key});
@@ -13,66 +14,80 @@ class ManagerRevenuePage extends StatefulWidget {
 }
 
 class _ManagerRevenuePageState extends State<ManagerRevenuePage> {
-  RevenueFilterType selectedFilter = RevenueFilterType.today;
+  String selectedFilter = 'month';
+  final Set<String> expandedCategories = {};
 
   late DateTime startDate;
   late DateTime endDate;
 
-  bool _showCatalogProducts = false;
+  static const Color primaryRed = Color(0xFFEF2A39);
+  static const Color orangeRed = Color(0xFFFF7A45);
+
+  static const Color pastelOrange = Color(0xFFFFF3E8);
+  static const Color pastelGreen = Color(0xFFEAF8EF);
+  static const Color pastelBlue = Color(0xFFEAF2FF);
+  static const Color pastelPurple = Color(0xFFF3EDFF);
+  static const Color pastelGrey = Color(0xFFF7F7F9);
+
+  static const Color textDark = Color(0xFF111827);
+  static const Color textMuted = Color(0xFF6B7280);
 
   @override
   void initState() {
     super.initState();
-    _setDefaultToday();
+    _setMonthRange();
 
     Future.microtask(() {
       context.read<OrderProvider>().loadAllOrders();
     });
   }
 
-  void _setDefaultToday() {
+  void _setTodayRange() {
     final now = DateTime.now();
     startDate = DateTime(now.year, now.month, now.day);
     endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
   }
 
-  void _updateRangeByFilter(RevenueFilterType type) {
+  void _setWeekRange() {
     final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
 
-    switch (type) {
-      case RevenueFilterType.today:
-        startDate = DateTime(now.year, now.month, now.day);
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        break;
-      case RevenueFilterType.week:
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        startDate = DateTime(
-          startOfWeek.year,
-          startOfWeek.month,
-          startOfWeek.day,
-        );
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        break;
-      case RevenueFilterType.month:
-        startDate = DateTime(now.year, now.month, 1);
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        break;
-      case RevenueFilterType.custom:
-        break;
-    }
+    startDate = DateTime(monday.year, monday.month, monday.day);
+    endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
   }
 
-  Future<void> _selectCustomRange() async {
+  void _setMonthRange() {
+    final now = DateTime.now();
+    startDate = DateTime(now.year, now.month, 1);
+    endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+  }
+
+  void _selectFilter(String value) {
+    setState(() {
+      selectedFilter = value;
+      expandedCategories.clear();
+
+      if (value == 'today') {
+        _setTodayRange();
+      } else if (value == 'week') {
+        _setWeekRange();
+      } else {
+        _setMonthRange();
+      }
+    });
+  }
+
+  Future<void> _pickCustomRange() async {
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       initialDateRange: DateTimeRange(start: startDate, end: endDate),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF22C55E),
+              primary: primaryRed,
               onPrimary: Colors.white,
             ),
           ),
@@ -84,12 +99,15 @@ class _ManagerRevenuePageState extends State<ManagerRevenuePage> {
     if (picked == null) return;
 
     setState(() {
-      selectedFilter = RevenueFilterType.custom;
+      selectedFilter = 'custom';
+      expandedCategories.clear();
+
       startDate = DateTime(
         picked.start.year,
         picked.start.month,
         picked.start.day,
       );
+
       endDate = DateTime(
         picked.end.year,
         picked.end.month,
@@ -101,12 +119,81 @@ class _ManagerRevenuePageState extends State<ManagerRevenuePage> {
     });
   }
 
-  String formatPrice(double price) {
-    final text = price.round().toString();
+  Future<void> _refresh() async {
+    await context.read<OrderProvider>().loadAllOrders();
+  }
+
+  bool _isInRange(DateTime date) {
+    return !date.isBefore(startDate) && !date.isAfter(endDate);
+  }
+
+  List<OrderModel> _completedOrders(List<OrderModel> orders) {
+    return orders.where((order) {
+      return order.status == 'completed' && _isInRange(order.orderDate);
+    }).toList();
+  }
+
+  double _totalRevenue(List<OrderModel> orders) {
+    return orders.fold<double>(0, (sum, order) => sum + order.totalAmount);
+  }
+
+  int _totalQuantity(List<_CategorySaleGroup> groups) {
+    return groups.fold<int>(0, (sum, group) => sum + group.totalQuantity);
+  }
+
+  List<_CategorySaleGroup> _buildCategoryGroups(List<OrderModel> orders) {
+    final categoryMap = <String, Map<String, _ProductSaleItem>>{};
+
+    for (final order in orders) {
+      for (final item in order.items) {
+        final categoryName =
+            item.categoryTitle.isNotEmpty ? item.categoryTitle : 'Khác';
+
+        final productName =
+            item.productName.isNotEmpty ? item.productName : 'Sản phẩm';
+
+        categoryMap.putIfAbsent(categoryName, () => {});
+
+        final products = categoryMap[categoryName]!;
+
+        if (products.containsKey(productName)) {
+          final old = products[productName]!;
+          products[productName] = old.copyWith(
+            quantity: old.quantity + item.quantity,
+          );
+        } else {
+          products[productName] = _ProductSaleItem(
+            name: productName,
+            quantity: item.quantity,
+          );
+        }
+      }
+    }
+
+    final groups =
+        categoryMap.entries.map((entry) {
+          final products =
+              entry.value.values.toList()
+                ..sort((a, b) => b.quantity.compareTo(a.quantity));
+
+          return _CategorySaleGroup(
+            categoryName: entry.key,
+            products: products,
+          );
+        }).toList();
+
+    groups.sort((a, b) => b.totalQuantity.compareTo(a.totalQuantity));
+
+    return groups;
+  }
+
+  String _formatPrice(double value) {
+    final text = value.round().toString();
     final buffer = StringBuffer();
 
     for (int i = 0; i < text.length; i++) {
       buffer.write(text[i]);
+
       final remaining = text.length - i - 1;
       if (remaining > 0 && remaining % 3 == 0) {
         buffer.write('.');
@@ -116,376 +203,206 @@ class _ManagerRevenuePageState extends State<ManagerRevenuePage> {
     return '${buffer}đ';
   }
 
-  String formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
+  String _formatDate(DateTime date) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(date.day)}/${two(date.month)}/${date.year}';
   }
 
-  bool _isCompleted(dynamic order) {
-    final status = order.status.toString().toLowerCase();
+  IconData _categoryIcon(String name) {
+    final value = name.toLowerCase();
 
-    return status.contains('completed') ||
-        status.contains('complete') ||
-        status.contains('done') ||
-        status.contains('success') ||
-        status.contains('delivered') ||
-        status.contains('hoàn thành') ||
-        status.contains('thanh cong') ||
-        status.contains('thành công');
-  }
-
-  DateTime _getOrderDate(dynamic order) {
-    final value = order.orderDate;
-
-    if (value is DateTime) return value;
-
-    try {
-      return DateTime.parse(value.toString());
-    } catch (_) {
-      return DateTime.now();
+    if (value.contains('nước') ||
+        value.contains('drink') ||
+        value.contains('beverage')) {
+      return Icons.local_drink_rounded;
     }
-  }
 
-  double _getOrderTotal(dynamic order) {
-    try {
-      return (order.totalAmount as num).toDouble();
-    } catch (_) {
-      return 0;
+    if (value.contains('combo')) {
+      return Icons.dashboard_customize_rounded;
     }
+
+    if (value.contains('food') ||
+        value.contains('món') ||
+        value.contains('ăn')) {
+      return Icons.restaurant_rounded;
+    }
+
+    return Icons.fastfood_rounded;
   }
 
-  List<dynamic> _getFilteredCompletedOrders(List<dynamic> orders) {
-    return orders.where((order) {
-      final date = _getOrderDate(order);
+  Color _categoryPastelColor(int index) {
+    final colors = [
+      pastelOrange,
+      pastelGreen,
+      pastelBlue,
+      pastelPurple,
+      pastelGrey,
+    ];
 
-      return _isCompleted(order) &&
-          !date.isBefore(startDate) &&
-          !date.isAfter(endDate);
-    }).toList();
+    return colors[index % colors.length];
   }
 
-  Map<String, Map<String, int>> _getProductsByCategory(List<dynamic> orders) {
-    final Map<String, Map<String, int>> result = {};
+  Color _categoryIconColor(int index) {
+    final colors = [
+      const Color(0xFFF97316),
+      const Color(0xFF16A34A),
+      const Color(0xFF2563EB),
+      const Color(0xFF7C3AED),
+      const Color(0xFF64748B),
+    ];
 
-    for (final order in orders) {
-      for (final item in order.items) {
-        final categoryName =
-            item.categoryTitle.toString().trim().isEmpty
-                ? 'Khác'
-                : item.categoryTitle.toString().trim();
+    return colors[index % colors.length];
+  }
 
-        final productName =
-            item.title.toString().trim().isEmpty
-                ? 'Sản phẩm'
-                : item.title.toString().trim();
-
-        final quantity =
-            item.quantity is int
-                ? item.quantity as int
-                : int.tryParse(item.quantity.toString()) ?? 1;
-
-        result.putIfAbsent(categoryName, () => {});
-        result[categoryName]![productName] =
-            (result[categoryName]![productName] ?? 0) + quantity;
+  void _toggleCategory(String categoryName) {
+    setState(() {
+      if (expandedCategories.contains(categoryName)) {
+        expandedCategories.remove(categoryName);
+      } else {
+        expandedCategories.add(categoryName);
       }
-    }
-
-    for (final category in result.keys) {
-      result[category] = Map.fromEntries(
-        result[category]!.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value)),
-      );
-    }
-
-    return Map.fromEntries(
-      result.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-    );
-  }
-
-  int _getSoldItemCount(Map<String, Map<String, int>> productsByCategory) {
-    return productsByCategory.values.fold<int>(
-      0,
-      (sum, products) => sum + products.values.fold<int>(0, (s, q) => s + q),
-    );
-  }
-
-  int _getCategoryCount(Map<String, Map<String, int>> productsByCategory) {
-    return productsByCategory.length;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final orderProvider = context.watch<OrderProvider>();
-    final orders = orderProvider.orders;
+    final provider = context.watch<OrderProvider>();
 
-    final completedOrders = _getFilteredCompletedOrders(orders);
+    final completedOrders = _completedOrders(provider.orders);
+    final totalRevenue = _totalRevenue(completedOrders);
+    final categoryGroups = _buildCategoryGroups(completedOrders);
+    final totalQuantity = _totalQuantity(categoryGroups);
 
-    final totalRevenue = completedOrders.fold<double>(
-      0,
-      (sum, order) => sum + _getOrderTotal(order),
-    );
-
-    final productsByCategory = _getProductsByCategory(completedOrders);
-    final soldItemCount = _getSoldItemCount(productsByCategory);
-    final categoryCount = _getCategoryCount(productsByCategory);
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFEF2A39),
-      body: Column(
-        children: [
-          const _ManagerHeader(title: 'Doanh thu'),
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-              ),
-              child: RefreshIndicator(
-                onRefresh: () => context.read<OrderProvider>().loadAllOrders(),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final horizontalPadding =
-                        constraints.maxWidth >= 700 ? 24.0 : 16.0;
-
-                    return ListView(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPadding,
-                        20,
-                        horizontalPadding,
-                        28,
+    return AppLayout(
+      title: 'Doanh thu',
+      showBack: true,
+      child: AppBody(
+        child:
+            provider.isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(color: primaryRed),
+                )
+                : RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                    children: [
+                      _FilterSection(
+                        selectedFilter: selectedFilter,
+                        rangeText:
+                            '${_formatDate(startDate)} - ${_formatDate(endDate)}',
+                        onToday: () => _selectFilter('today'),
+                        onWeek: () => _selectFilter('week'),
+                        onMonth: () => _selectFilter('month'),
+                        onCustom: _pickCustomRange,
                       ),
-                      children: [
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 760),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _FilterSection(
-                                  selectedFilter: selectedFilter,
-                                  onSelect: (type) async {
-                                    if (type == RevenueFilterType.custom) {
-                                      await _selectCustomRange();
-                                      return;
-                                    }
+                      const SizedBox(height: 14),
+                      _RevenueCard(
+                        totalRevenue: _formatPrice(totalRevenue),
+                        orderCount: completedOrders.length,
+                        rangeText:
+                            '${_formatDate(startDate)} - ${_formatDate(endDate)}',
+                      ),
+                      const SizedBox(height: 24),
+                      _StatisticHeader(
+                        totalQuantity: totalQuantity,
+                        categoryCount: categoryGroups.length,
+                      ),
+                      const SizedBox(height: 14),
+                      if (categoryGroups.isEmpty)
+                        const _EmptyState()
+                      else
+                        ...List.generate(categoryGroups.length, (index) {
+                          final group = categoryGroups[index];
 
-                                    setState(() {
-                                      selectedFilter = type;
-                                      _updateRangeByFilter(type);
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                _DateRangeLabel(
-                                  startDate: formatDate(startDate),
-                                  endDate: formatDate(endDate),
-                                ),
-                                const SizedBox(height: 16),
-                                _RevenueSummaryCard(
-                                  totalRevenue: formatPrice(totalRevenue),
-                                  completedOrders: completedOrders.length,
-                                  soldItems: soldItemCount,
-                                  categoryCount: categoryCount,
-                                  showCatalogProducts: _showCatalogProducts,
-                                  onCatalogTap: () {
-                                    setState(() {
-                                      _showCatalogProducts =
-                                          !_showCatalogProducts;
-                                    });
-                                  },
-                                ),
-                                if (_showCatalogProducts) ...[
-                                  const SizedBox(height: 14),
-                                  _CatalogDropdownTable(
-                                    productsByCategory: productsByCategory,
-                                  ),
-                                ],
-                                const SizedBox(height: 22),
-                                const Text(
-                                  'Thống kê món được đặt',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF1F2937),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Bấm vào từng danh mục để xem sản phẩm bên trong',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade600,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                if (productsByCategory.isEmpty)
-                                  const _EmptyState()
-                                else
-                                  ...productsByCategory.entries.map(
-                                    (entry) => _CategoryProductGroup(
-                                      categoryName: entry.key,
-                                      products: entry.value,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+                          final isExpanded = expandedCategories.contains(
+                            group.categoryName,
+                          );
 
-class _ManagerHeader extends StatelessWidget {
-  final String title;
-
-  const _ManagerHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final isSmall = MediaQuery.sizeOf(context).width < 380;
-
-    return SafeArea(
-      bottom: false,
-      child: Container(
-        width: double.infinity,
-        color: const Color(0xFFEF2A39),
-        padding: EdgeInsets.fromLTRB(
-          isSmall ? 12 : 14,
-          12,
-          isSmall ? 12 : 14,
-          16,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white,
-                      size: 21,
-                    ),
+                          return _CategorySaleCard(
+                            group: group,
+                            isExpanded: isExpanded,
+                            icon: _categoryIcon(group.categoryName),
+                            pastelColor: _categoryPastelColor(index),
+                            iconColor: _categoryIconColor(index),
+                            onTap: () => _toggleCategory(group.categoryName),
+                          );
+                        }),
+                    ],
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: isSmall ? 17 : 19,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 44, height: 44),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DateRangeLabel extends StatelessWidget {
-  final String startDate;
-  final String endDate;
-
-  const _DateRangeLabel({required this.startDate, required this.endDate});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.date_range_rounded,
-            size: 18,
-            color: Color(0xFF2563EB),
-          ),
-          const SizedBox(width: 7),
-          Flexible(
-            child: Text(
-              '$startDate - $endDate',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF1E40AF),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
 }
 
 class _FilterSection extends StatelessWidget {
-  final RevenueFilterType selectedFilter;
-  final Future<void> Function(RevenueFilterType type) onSelect;
+  final String selectedFilter;
+  final String rangeText;
+  final VoidCallback onToday;
+  final VoidCallback onWeek;
+  final VoidCallback onMonth;
+  final VoidCallback onCustom;
 
-  const _FilterSection({required this.selectedFilter, required this.onSelect});
+  const _FilterSection({
+    required this.selectedFilter,
+    required this.rangeText,
+    required this.onToday,
+    required this.onWeek,
+    required this.onMonth,
+    required this.onCustom,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
+    return _WhiteBox(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FilterChipItem(
-            label: 'Hôm nay',
-            icon: Icons.today_rounded,
-            type: RevenueFilterType.today,
-            selectedFilter: selectedFilter,
-            onSelect: onSelect,
+          const Text(
+            'Khoảng thời gian',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: _ManagerRevenuePageState.textDark,
+            ),
           ),
-          _FilterChipItem(
-            label: 'Tuần này',
-            icon: Icons.calendar_view_week_rounded,
-            type: RevenueFilterType.week,
-            selectedFilter: selectedFilter,
-            onSelect: onSelect,
+          const SizedBox(height: 6),
+          Text(
+            rangeText,
+            style: const TextStyle(
+              color: _ManagerRevenuePageState.textMuted,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          _FilterChipItem(
-            label: 'Tháng này',
-            icon: Icons.calendar_month_rounded,
-            type: RevenueFilterType.month,
-            selectedFilter: selectedFilter,
-            onSelect: onSelect,
-          ),
-          _FilterChipItem(
-            label: 'Tùy chọn',
-            icon: Icons.tune_rounded,
-            type: RevenueFilterType.custom,
-            selectedFilter: selectedFilter,
-            onSelect: onSelect,
+          const SizedBox(height: 13),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _FilterButton(
+                label: 'Hôm nay',
+                selected: selectedFilter == 'today',
+                onTap: onToday,
+              ),
+              _FilterButton(
+                label: 'Tuần này',
+                selected: selectedFilter == 'week',
+                onTap: onWeek,
+              ),
+              _FilterButton(
+                label: 'Tháng này',
+                selected: selectedFilter == 'month',
+                onTap: onMonth,
+              ),
+              _FilterButton(
+                label: 'Tùy chọn',
+                selected: selectedFilter == 'custom',
+                onTap: onCustom,
+              ),
+            ],
           ),
         ],
       ),
@@ -493,158 +410,128 @@ class _FilterSection extends StatelessWidget {
   }
 }
 
-class _FilterChipItem extends StatelessWidget {
+class _FilterButton extends StatelessWidget {
   final String label;
-  final IconData icon;
-  final RevenueFilterType type;
-  final RevenueFilterType selectedFilter;
-  final Future<void> Function(RevenueFilterType type) onSelect;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _FilterChipItem({
+  const _FilterButton({
     required this.label,
-    required this.icon,
-    required this.type,
-    required this.selectedFilter,
-    required this.onSelect,
+    required this.selected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = selectedFilter == type;
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        avatar: Icon(
-          icon,
-          size: 18,
-          color: isSelected ? Colors.white : const Color(0xFF64748B),
-        ),
-        label: Text(label),
-        selected: isSelected,
-        selectedColor: const Color(0xFF22C55E),
-        backgroundColor: Colors.white,
-        labelStyle: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF334155),
-          fontWeight: FontWeight.w800,
-        ),
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: _ManagerRevenuePageState.primaryRed,
+      backgroundColor: const Color(0xFFF7F7F9),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : const Color(0xFF374151),
+        fontSize: 12.5,
+        fontWeight: FontWeight.w700,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(99),
         side: BorderSide(
-          color: isSelected ? const Color(0xFF22C55E) : const Color(0xFFE2E8F0),
+          color:
+              selected
+                  ? _ManagerRevenuePageState.primaryRed
+                  : Colors.grey.shade300,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-        onSelected: (_) => onSelect(type),
       ),
     );
   }
 }
 
-class _RevenueSummaryCard extends StatelessWidget {
+class _RevenueCard extends StatelessWidget {
   final String totalRevenue;
-  final int completedOrders;
-  final int soldItems;
-  final int categoryCount;
-  final bool showCatalogProducts;
-  final VoidCallback onCatalogTap;
+  final int orderCount;
+  final String rangeText;
 
-  const _RevenueSummaryCard({
+  const _RevenueCard({
     required this.totalRevenue,
-    required this.completedOrders,
-    required this.soldItems,
-    required this.categoryCount,
-    required this.showCatalogProducts,
-    required this.onCatalogTap,
+    required this.orderCount,
+    required this.rangeText,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFE0F2FE), Color(0xFFDCFCE7)],
+          colors: [
+            _ManagerRevenuePageState.primaryRed,
+            _ManagerRevenuePageState.orangeRed,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.white, width: 1.5),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.045),
+            color: _ManagerRevenuePageState.primaryRed.withOpacity(0.22),
             blurRadius: 18,
-            offset: const Offset(0, 7),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          const Text(
-            'Tổng doanh thu',
-            style: TextStyle(
-              color: Color(0xFF475569),
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.trending_up_rounded,
+              color: Colors.white,
+              size: 25,
             ),
           ),
-          const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              totalRevenue,
-              style: const TextStyle(
-                color: Color(0xFF0F172A),
-                fontSize: 33,
-                fontWeight: FontWeight.w900,
-              ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tổng doanh thu',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  totalRevenue,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  '$orderCount đơn hoàn thành • $rangeText',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 18),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final itemWidth = (constraints.maxWidth - 20) / 3;
-
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  SizedBox(
-                    width: itemWidth,
-                    child: _MiniSummary(
-                      title: 'Đơn thành công',
-                      value: completedOrders.toString(),
-                      icon: Icons.receipt_long_rounded,
-                      backgroundColor: const Color(0xFFFFF7ED),
-                      iconColor: const Color(0xFFF97316),
-                      onTap: null,
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
-                    child: _MiniSummary(
-                      title: 'Món đã bán',
-                      value: soldItems.toString(),
-                      icon: Icons.fastfood_rounded,
-                      backgroundColor: const Color(0xFFF0FDF4),
-                      iconColor: const Color(0xFF22C55E),
-                      onTap: null,
-                    ),
-                  ),
-                  SizedBox(
-                    width: itemWidth,
-                    child: _MiniSummary(
-                      title: 'Danh mục',
-                      value: categoryCount.toString(),
-                      icon:
-                          showCatalogProducts
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.category_rounded,
-                      backgroundColor: const Color(0xFFF5F3FF),
-                      iconColor: const Color(0xFF7C3AED),
-                      onTap: onCatalogTap,
-                    ),
-                  ),
-                ],
-              );
-            },
           ),
         ],
       ),
@@ -652,266 +539,262 @@ class _RevenueSummaryCard extends StatelessWidget {
   }
 }
 
-class _MiniSummary extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color backgroundColor;
-  final Color iconColor;
-  final VoidCallback? onTap;
+class _StatisticHeader extends StatelessWidget {
+  final int totalQuantity;
+  final int categoryCount;
 
-  const _MiniSummary({
-    required this.title,
-    required this.value,
+  const _StatisticHeader({
+    required this.totalQuantity,
+    required this.categoryCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _WhiteBox(
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: _ManagerRevenuePageState.pastelBlue,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.bar_chart_rounded,
+              color: Color(0xFF2563EB),
+              size: 23,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Thống kê món được đặt',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: _ManagerRevenuePageState.textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Bấm vào từng danh mục để xem sản phẩm bên trong',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '$totalQuantity lượt bán • $categoryCount danh mục',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    color: _ManagerRevenuePageState.primaryRed,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategorySaleCard extends StatelessWidget {
+  final _CategorySaleGroup group;
+  final bool isExpanded;
+  final IconData icon;
+  final Color pastelColor;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _CategorySaleCard({
+    required this.group,
+    required this.isExpanded,
     required this.icon,
-    required this.backgroundColor,
+    required this.pastelColor,
     required this.iconColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
-      padding: const EdgeInsets.fromLTRB(9, 12, 9, 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white),
-      ),
+    return _WhiteBox(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
-          Icon(icon, color: iconColor, size: 23),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF0F172A),
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(22),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: pastelColor,
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 26),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          group.categoryName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: _ManagerRevenuePageState.textDark,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${group.totalQuantity} lượt bán',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: _ManagerRevenuePageState.textMuted,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F7F9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 26,
+                        color: _ManagerRevenuePageState.textDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: _ProductList(
+              products: group.products,
+              iconColor: iconColor,
+              pastelColor: pastelColor,
             ),
+            crossFadeState:
+                isExpanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
           ),
-        ],
-      ),
-    );
-
-    if (onTap == null) return content;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: content,
-      ),
-    );
-  }
-}
-
-class _CatalogDropdownTable extends StatelessWidget {
-  final Map<String, Map<String, int>> productsByCategory;
-
-  const _CatalogDropdownTable({required this.productsByCategory});
-
-  @override
-  Widget build(BuildContext context) {
-    if (productsByCategory.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: _whiteCardDecoration(),
-        child: const Text(
-          'Chưa có sản phẩm nào trong khoảng thời gian này.',
-          style: TextStyle(
-            color: Color(0xFF64748B),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _whiteCardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Danh sách sản phẩm theo catalog',
-            style: TextStyle(
-              fontSize: 15.5,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 10),
-          ...productsByCategory.entries.map((entry) {
-            final total = entry.value.values.fold<int>(0, (sum, q) => sum + q);
-
-            return ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(bottom: 8),
-              leading: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F3FF),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.folder_rounded,
-                  color: Color(0xFF7C3AED),
-                  size: 22,
-                ),
-              ),
-              title: Text(
-                entry.key,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-              subtitle: Text(
-                '$total lượt bán',
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
-                ),
-              ),
-              children:
-                  entry.value.entries.map((product) {
-                    return _ProductStatItem(
-                      name: product.key,
-                      quantity: product.value,
-                    );
-                  }).toList(),
-            );
-          }),
         ],
       ),
     );
   }
 }
 
-class _CategoryProductGroup extends StatelessWidget {
-  final String categoryName;
-  final Map<String, int> products;
+class _ProductList extends StatelessWidget {
+  final List<_ProductSaleItem> products;
+  final Color iconColor;
+  final Color pastelColor;
 
-  const _CategoryProductGroup({
-    required this.categoryName,
+  const _ProductList({
     required this.products,
+    required this.iconColor,
+    required this.pastelColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final totalQuantity = products.values.fold<int>(0, (sum, q) => sum + q);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: _whiteCardDecoration(),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF7ED),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(Icons.category_rounded, color: Color(0xFFF97316)),
-        ),
-        title: Text(
-          categoryName,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-        subtitle: Text(
-          '$totalQuantity lượt bán',
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+      child: Column(
         children:
-            products.entries.map((entry) {
-              return _ProductStatItem(name: entry.key, quantity: entry.value);
+            products.map((item) {
+              return Container(
+                margin: const EdgeInsets.only(top: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 11,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFCFCFD),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: pastelColor.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Icon(
+                        Icons.local_fire_department_rounded,
+                        color: iconColor,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: _ManagerRevenuePageState.textDark,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _ManagerRevenuePageState.pastelGreen,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        '${item.quantity} lượt',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF15803D),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
             }).toList(),
-      ),
-    );
-  }
-}
-
-class _ProductStatItem extends StatelessWidget {
-  final String name;
-  final int quantity;
-
-  const _ProductStatItem({required this.name, required this.quantity});
-
-  @override
-  Widget build(BuildContext context) {
-    final safeQuantity = quantity <= 0 ? 1 : quantity;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.local_fire_department_rounded,
-            color: Color(0xFFF97316),
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 14.5,
-                color: Color(0xFF1F2937),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: Text(
-              '$safeQuantity lượt',
-              style: const TextStyle(
-                color: Color(0xFF15803D),
-                fontWeight: FontWeight.w900,
-                fontSize: 12.5,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -922,25 +805,41 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: _whiteCardDecoration(),
+    return _WhiteBox(
+      padding: const EdgeInsets.all(26),
       child: Column(
         children: [
-          Icon(Icons.insights_rounded, size: 42, color: Colors.grey.shade400),
-          const SizedBox(height: 10),
-          const Text(
-            'Chưa có dữ liệu doanh thu',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1F2937),
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: _ManagerRevenuePageState.pastelBlue,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              size: 34,
+              color: Color(0xFF2563EB),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Dữ liệu sẽ hiển thị khi có đơn hàng hoàn thành trong khoảng thời gian đã chọn.',
+          const SizedBox(height: 13),
+          const Text(
+            'Chưa có món nào được đặt',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: _ManagerRevenuePageState.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Khi có đơn hàng hoàn thành, thống kê món bán sẽ hiển thị tại đây.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: _ManagerRevenuePageState.textMuted,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -948,17 +847,64 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-BoxDecoration _whiteCardDecoration() {
-  return BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(22),
-    border: Border.all(color: const Color(0xFFE2E8F0)),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.035),
-        blurRadius: 12,
-        offset: const Offset(0, 5),
+class _WhiteBox extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry margin;
+
+  const _WhiteBox({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.margin = EdgeInsets.zero,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: margin,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFEDEDF1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.035),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-    ],
-  );
+      child: child,
+    );
+  }
+}
+
+class _CategorySaleGroup {
+  final String categoryName;
+  final List<_ProductSaleItem> products;
+
+  const _CategorySaleGroup({
+    required this.categoryName,
+    required this.products,
+  });
+
+  int get totalQuantity {
+    return products.fold<int>(0, (sum, item) => sum + item.quantity);
+  }
+}
+
+class _ProductSaleItem {
+  final String name;
+  final int quantity;
+
+  const _ProductSaleItem({required this.name, required this.quantity});
+
+  _ProductSaleItem copyWith({String? name, int? quantity}) {
+    return _ProductSaleItem(
+      name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
+    );
+  }
 }
