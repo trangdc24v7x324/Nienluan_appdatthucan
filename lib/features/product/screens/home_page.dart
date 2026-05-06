@@ -108,15 +108,37 @@ class _HomePageState extends State<HomePage> {
 
     if (index == 1) {
       await Navigator.pushNamed(context, AppRoutes.cart);
+
+      if (!mounted) return;
+
+      try {
+        await context.read<NotificationProvider>().loadCustomerNotifications();
+      } catch (e) {
+        debugPrint('Reload notification after cart error: $e');
+      }
     } else if (index == 2) {
       await _openChat();
+
+      if (!mounted) return;
+
+      final customerId = pb.authStore.model?.id ?? '';
+
+      if (customerId.isNotEmpty) {
+        await context.read<ChatProvider>().loadCustomerChatSummary(
+          customerId: customerId,
+        );
+      }
     } else if (index == 3) {
       await Navigator.pushNamed(context, AppRoutes.notifications);
 
       if (!mounted) return;
+
+      // Chỉ load lại sau khi quay về, KHÔNG tự markAllAsRead ở đây.
       try {
-        await context.read<NotificationProvider>().markAllAsRead();
-      } catch (_) {}
+        await context.read<NotificationProvider>().loadCustomerNotifications();
+      } catch (e) {
+        debugPrint('Reload notification after notification page error: $e');
+      }
     }
 
     if (mounted) setState(() => selectedIndex = 0);

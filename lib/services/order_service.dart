@@ -48,32 +48,48 @@ class OrderService {
           },
         );
 
-    for (final item in items) {
-      final body = <String, dynamic>{
-        'order': orderRecord.id,
-        'product': item.productId,
-        'product_name': item.title,
-        'product_image': item.image,
-        'unit_price': item.price,
-        'quantity': item.quantity,
-        'subtotal': item.subtotal,
-        'note': '',
-        'category_title': item.categoryTitle,
-        'category_slug': item.categorySlug,
-      };
+    try {
+      for (final item in items) {
+        if (item.productId.trim().isEmpty) {
+          throw Exception('Sản phẩm "${item.title}" bị thiếu productId');
+        }
 
-      if (item.categoryId.trim().isNotEmpty) {
-        body['category'] = item.categoryId;
+        final body = <String, dynamic>{
+          'order': orderRecord.id,
+          'product': item.productId,
+          'product_name': item.title,
+          'product_image': item.image,
+          'unit_price': item.price,
+          'quantity': item.quantity,
+          'subtotal': item.subtotal,
+          'note': '',
+          'category_title': item.categoryTitle,
+          'category_slug': item.categorySlug,
+        };
+
+        if (item.categoryId.trim().isNotEmpty) {
+          body['category'] = item.categoryId;
+        }
+
+        await pb.collection('order_items').create(body: body);
+      }
+    } catch (e) {
+      print('Tạo order thành công nhưng tạo order_items thất bại: $e');
+
+      try {
+        await pb.collection('orders').delete(orderRecord.id);
+      } catch (deleteError) {
+        print('Không thể rollback đơn hàng ${orderRecord.id}: $deleteError');
       }
 
-      await pb.collection('order_items').create(body: body);
+      throw Exception('Không thể tạo chi tiết đơn hàng: $e');
     }
 
     try {
       await _notificationService.create(
         title: 'Đặt hàng thành công',
         body: 'Đơn hàng của bạn đã được tạo thành công.',
-        type: 'order_success',
+        type: 'order',
         targetRole: 'personal',
         targetUser: authUser.id,
         orderId: orderRecord.id,
@@ -82,7 +98,7 @@ class OrderService {
       await _notificationService.create(
         title: 'Có đơn hàng mới',
         body: 'Một khách hàng vừa đặt đơn hàng mới.',
-        type: 'new_order',
+        type: 'order',
         targetRole: 'manager',
         orderId: orderRecord.id,
       );
@@ -131,7 +147,7 @@ class OrderService {
     required String status,
     String cancelReason = '',
   }) async {
-    final body = {'order_status': status};
+    final body = <String, dynamic>{'order_status': status};
 
     if (status == 'cancelled') {
       body['cancel_reason'] = cancelReason.trim();
@@ -141,13 +157,29 @@ class OrderService {
 
     final userId = (order.data['user'] ?? '').toString();
 
-    if (userId.isEmpty) return;
+    print('===== UPDATE ORDER STATUS =====');
+    print('Order ID: $orderId');
+    print('Status: $status');
+    print('Customer ID: $userId');
+    print('Order data: ${order.data}');
+    print('===============================');
 
-    await _createOrderStatusNotification(
-      userId: userId,
-      orderId: orderId,
-      status: status,
-    );
+    if (userId.isEmpty) {
+      print('Không tạo notification vì userId rỗng');
+      return;
+    }
+
+    try {
+      await _createOrderStatusNotification(
+        userId: userId,
+        orderId: orderId,
+        status: status,
+      );
+
+      print('Đã tạo thông báo trạng thái đơn hàng');
+    } catch (e) {
+      print('Lỗi tạo thông báo trạng thái đơn hàng: $e');
+    }
   }
 
   Future<void> updatePaymentStatus({
@@ -211,51 +243,33 @@ class OrderService {
     required String orderId,
     required String status,
   }) async {
+    String title = 'Cập nhật đơn hàng';
+    String body = 'Trạng thái đơn hàng của bạn đã được cập nhật.';
+
     if (status == 'confirmed') {
-      await _notificationService.create(
-        title: 'Đơn hàng đã được xác nhận',
-        body: 'Đơn hàng của bạn đã được cửa hàng xác nhận.',
-        type: 'order_confirmed',
-        targetRole: 'personal',
-        targetUser: userId,
-        orderId: orderId,
-      );
+      title = 'Đơn hàng đã được xác nhận';
+      body = 'Đơn hàng của bạn đã được cửa hàng xác nhận.';
     } else if (status == 'preparing') {
-      await _notificationService.create(
-        title: 'Đơn hàng đang được chuẩn bị',
-        body: 'Cửa hàng đang chuẩn bị đơn hàng của bạn.',
-        type: 'order_preparing',
-        targetRole: 'personal',
-        targetUser: userId,
-        orderId: orderId,
-      );
+      title = 'Đơn hàng đang được chuẩn bị';
+      body = 'Cửa hàng đang chuẩn bị đơn hàng của bạn.';
     } else if (status == 'delivering') {
-      await _notificationService.create(
-        title: 'Đơn hàng đang được giao',
-        body: 'Đơn hàng của bạn đang trên đường giao đến bạn.',
-        type: 'order_delivering',
-        targetRole: 'personal',
-        targetUser: userId,
-        orderId: orderId,
-      );
+      title = 'Đơn hàng đang được giao';
+      body = 'Đơn hàng của bạn đang trên đường giao đến bạn.';
     } else if (status == 'completed') {
-      await _notificationService.create(
-        title: 'Đơn hàng đã giao thành công',
-        body: 'Đơn hàng của bạn đã được giao thành công.',
-        type: 'order_completed',
-        targetRole: 'personal',
-        targetUser: userId,
-        orderId: orderId,
-      );
+      title = 'Đơn hàng đã giao thành công';
+      body = 'Đơn hàng của bạn đã được giao thành công.';
     } else if (status == 'cancelled') {
-      await _notificationService.create(
-        title: 'Đơn hàng đã bị hủy',
-        body: 'Đơn hàng của bạn đã bị hủy.',
-        type: 'order_cancelled',
-        targetRole: 'personal',
-        targetUser: userId,
-        orderId: orderId,
-      );
+      title = 'Đơn hàng đã bị hủy';
+      body = 'Đơn hàng của bạn đã bị hủy.';
     }
+
+    await _notificationService.create(
+      title: title,
+      body: body,
+      type: 'order',
+      targetRole: 'personal',
+      targetUser: userId,
+      orderId: orderId,
+    );
   }
 }

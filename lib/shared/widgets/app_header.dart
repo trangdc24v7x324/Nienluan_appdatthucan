@@ -5,7 +5,6 @@ class AppHeader extends StatelessWidget {
   final bool showBack;
   final VoidCallback? onBack;
 
-  // ✅ dùng actions giống AppBar
   final List<Widget>? actions;
 
   const AppHeader({

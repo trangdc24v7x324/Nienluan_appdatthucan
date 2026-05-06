@@ -108,13 +108,11 @@ class _ManagerNotificationsPageState extends State<ManagerNotificationsPage> {
     setState(() => isLoading = true);
 
     try {
+      final safeType = selectedType == 'general' ? 'promotion' : selectedType;
+
       final success = await context
           .read<NotificationProvider>()
-          .createCustomerNotification(
-            title: title,
-            body: body,
-            type: selectedType,
-          );
+          .createCustomerNotification(title: title, body: body, type: safeType);
 
       if (!success) {
         _showMessage('Gửi thông báo thất bại');

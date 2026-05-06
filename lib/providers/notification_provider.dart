@@ -40,7 +40,10 @@ class NotificationProvider extends ChangeNotifier {
   Future<void> loadCustomerNotifications() async {
     final userId = pb.authStore.model?.id;
 
-    if (userId == null || userId.isEmpty) return;
+    if (userId == null || userId.isEmpty) {
+      debugPrint('loadCustomerNotifications: userId rỗng');
+      return;
+    }
 
     _setLoading(true);
     _clearError();
@@ -51,6 +54,19 @@ class NotificationProvider extends ChangeNotifier {
       _notifications
         ..clear()
         ..addAll(result);
+
+      debugPrint('Customer notifications: ${_notifications.length}');
+      debugPrint('Customer unreadCount: $unreadCount');
+
+      for (final item in _notifications) {
+        debugPrint(
+          'NOTI => title: ${item.title}, type: ${item.type}, '
+          'targetRole: ${item.targetRole}, targetUser: ${item.targetUser}, '
+          'orderId: ${item.orderId}, isRead: ${item.isRead}',
+        );
+      }
+
+      notifyListeners();
     } catch (e) {
       _setError('Không thể tải thông báo');
       debugPrint('loadCustomerNotifications error: $e');
@@ -69,6 +85,11 @@ class NotificationProvider extends ChangeNotifier {
       _notifications
         ..clear()
         ..addAll(result);
+
+      debugPrint('Manager notifications: ${_notifications.length}');
+      debugPrint('Manager unreadCount: $unreadCount');
+
+      notifyListeners();
     } catch (e) {
       _setError('Không thể tải thông báo quản lý');
       debugPrint('loadManagerNotifications error: $e');
@@ -119,7 +140,7 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   /// Manager tạo thông báo chung cho Customer.
-  /// Ví dụ: khuyến mãi, sản phẩm mới, thông báo hệ thống.
+  /// Không loadCustomerNotifications ở đây vì người đang đăng nhập là Manager.
   Future<bool> createCustomerNotification({
     required String title,
     required String body,
@@ -147,7 +168,7 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  /// Tạo thông báo cho Customer sau khi đặt hàng thành công.
+  /// Customer tự tạo/thêm thông báo đặt hàng cho chính mình.
   Future<bool> createOrderCreatedNotificationForCustomer({
     required String customerId,
     required String orderId,
@@ -158,6 +179,8 @@ class NotificationProvider extends ChangeNotifier {
         orderId: orderId,
       );
 
+      await loadCustomerNotifications();
+
       return true;
     } catch (e) {
       _setError('Không thể tạo thông báo đặt hàng');
@@ -166,7 +189,7 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  /// Tạo thông báo cho Customer khi Manager cập nhật trạng thái đơn hàng.
+  /// Tạo thông báo cập nhật trạng thái đơn hàng cho Customer.
   Future<bool> createOrderStatusNotificationForCustomer({
     required String customerId,
     required String orderId,

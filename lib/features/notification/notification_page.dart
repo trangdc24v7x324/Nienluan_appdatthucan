@@ -36,6 +36,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return Icons.fastfood_rounded;
       case 'general':
         return Icons.campaign_rounded;
+      case 'order':
       case 'order_success':
         return Icons.check_circle_rounded;
       case 'order_confirmed':
@@ -53,7 +54,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
-  Color _getColor(String type) {
+ Color _getColor(String type) {
     switch (type) {
       case 'promotion':
         return const Color(0xFFF97316);
@@ -61,6 +62,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return const Color(0xFF22C55E);
       case 'general':
         return const Color(0xFF2563EB);
+      case 'order':
       case 'order_success':
       case 'order_confirmed':
       case 'order_completed':
@@ -84,8 +86,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
         return 'Sản phẩm mới';
       case 'general':
         return 'Thông báo chung';
+      case 'order':
       case 'order_success':
-        return 'Đặt hàng';
+        return 'Đơn hàng';
       case 'order_confirmed':
         return 'Xác nhận đơn';
       case 'order_preparing':
@@ -102,7 +105,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   bool _isOrderType(String type) {
-    return type == 'order_success' ||
+    return type == 'order' ||
+        type == 'order_success' ||
         type == 'order_confirmed' ||
         type == 'order_preparing' ||
         type == 'order_delivering' ||

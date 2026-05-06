@@ -57,10 +57,28 @@ class NotificationService {
     String? targetUser,
     String? orderId,
   }) async {
+    String safeType = type.trim();
+
+    if (safeType == 'order' ||
+        safeType == 'new_order' ||
+        safeType == 'order_success' ||
+        safeType == 'order_confirmed' ||
+        safeType == 'order_preparing' ||
+        safeType == 'order_delivering' ||
+        safeType == 'order_completed' ||
+        safeType == 'order_cancelled') {
+      safeType = 'order_success';
+    }
+
+    // Nếu PocketBase chưa có "general" thì quy về promotion.
+    if (safeType == 'general') {
+      safeType = 'promotion';
+    }
+
     final data = <String, dynamic>{
       'title': title.trim(),
       'body': body.trim(),
-      'type': type.trim(),
+      'type': safeType,
       'targetRole': targetRole.trim(),
       'isRead': false,
     };
@@ -73,9 +91,10 @@ class NotificationService {
       data['orderId'] = orderId.trim();
     }
 
+    print('DATA NOTIFICATION GỬI LÊN: $data');
+
     await pb.collection('notifications').create(body: data);
   }
-
   Future<void> createOrderCreatedNotificationForCustomer({
     required String customerId,
     required String orderId,

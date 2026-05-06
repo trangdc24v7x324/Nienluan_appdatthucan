@@ -8,10 +8,8 @@ class ProductModel {
   final String deliveryTime;
   final double price;
 
-  /// categoryId là id relation trong PocketBase.
   final String categoryId;
 
-  /// categoryTitle/categorySlug lấy từ expand category.
   final String categoryTitle;
   final String categorySlug;
 

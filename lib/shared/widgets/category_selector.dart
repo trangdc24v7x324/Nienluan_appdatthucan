@@ -4,7 +4,7 @@ class CategorySelector extends StatelessWidget {
   final String selectedCategory;
   final ValueChanged<String> onCategorySelected;
 
-  // ✅ nhận categories từ provider
+  //nhận categories từ provider
   final List<dynamic> categories;
 
   const CategorySelector({

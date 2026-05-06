@@ -6,7 +6,7 @@ class AppLayout extends StatelessWidget {
   final bool showBack;
   final Widget child;
 
-  final List<Widget>? actions; // ✅ dùng actions
+  final List<Widget>? actions; 
   final Widget? floatingActionButton;
 
   const AppLayout({
@@ -30,7 +30,7 @@ class AppLayout extends StatelessWidget {
             AppHeader(
               title: title,
               showBack: showBack,
-              actions: actions, // ✅ FIX lỗi chính ở đây
+              actions: actions,
             ),
             Expanded(
               child: Container(
