@@ -41,7 +41,7 @@ class NotificationService {
     }).toList();
   }
 
-  Future<void> createManagerNotification({
+  Future<void> createCustomerNotification({
     required String title,
     required String body,
     required String type,
@@ -57,19 +57,52 @@ class NotificationService {
     String? targetUser,
     String? orderId,
   }) async {
-    await pb
-        .collection('notifications')
-        .create(
-          body: {
-            'title': title.trim(),
-            'body': body.trim(),
-            'type': type.trim(),
-            'targetRole': targetRole,
-            'targetUser': targetUser,
-            'orderId': orderId,
-            'isRead': false,
-          },
-        );
+    final data = <String, dynamic>{
+      'title': title.trim(),
+      'body': body.trim(),
+      'type': type.trim(),
+      'targetRole': targetRole.trim(),
+      'isRead': false,
+    };
+
+    if (targetUser != null && targetUser.trim().isNotEmpty) {
+      data['targetUser'] = targetUser.trim();
+    }
+
+    if (orderId != null && orderId.trim().isNotEmpty) {
+      data['orderId'] = orderId.trim();
+    }
+
+    await pb.collection('notifications').create(body: data);
+  }
+
+  Future<void> createOrderCreatedNotificationForCustomer({
+    required String customerId,
+    required String orderId,
+  }) async {
+    await create(
+      title: 'Đặt hàng thành công',
+      body: 'Đơn hàng của bạn đã được tạo thành công và đang chờ xác nhận.',
+      type: 'order',
+      targetRole: 'personal',
+      targetUser: customerId,
+      orderId: orderId,
+    );
+  }
+
+  Future<void> createOrderStatusNotificationForCustomer({
+    required String customerId,
+    required String orderId,
+    required String statusText,
+  }) async {
+    await create(
+      title: 'Cập nhật đơn hàng',
+      body: 'Đơn hàng của bạn $statusText.',
+      type: 'order',
+      targetRole: 'personal',
+      targetUser: customerId,
+      orderId: orderId,
+    );
   }
 
   Future<void> markAsRead(String notificationId) async {

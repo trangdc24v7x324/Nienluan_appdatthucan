@@ -198,8 +198,52 @@ class _ChatBubble extends StatelessWidget {
     required this.statusText,
   });
 
+  String _formatMessageTime(DateTime? time) {
+    if (time == null) return '';
+
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+
+    // Tin nhắn trong ngày: 10:54
+    if (diff.inDays == 0 &&
+        now.day == time.day &&
+        now.month == time.month &&
+        now.year == time.year) {
+      return '$hour:$minute';
+    }
+
+    final day = time.day.toString().padLeft(2, '0');
+    final month = time.month.toString().padLeft(2, '0');
+
+    // Tin nhắn khác ngày: 10:54 05/05
+    return '$hour:$minute $day/$month';
+  }
+
+  String _buildMetaText() {
+    final timeText = _formatMessageTime(message.created);
+
+    if (timeText.isEmpty && statusText.isEmpty) {
+      return '';
+    }
+
+    if (isMe) {
+      if (timeText.isNotEmpty && statusText.isNotEmpty) {
+        return '$timeText • $statusText';
+      }
+
+      return timeText.isNotEmpty ? timeText : statusText;
+    }
+
+    return timeText;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final metaText = _buildMetaText();
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
@@ -227,12 +271,15 @@ class _ChatBubble extends StatelessWidget {
                 ),
               ),
             ),
-            if (statusText.isNotEmpty) ...[
+            if (metaText.isNotEmpty) ...[
               const SizedBox(height: 3),
               Padding(
-                padding: const EdgeInsets.only(right: 4),
+                padding: EdgeInsets.only(
+                  left: isMe ? 0 : 4,
+                  right: isMe ? 4 : 0,
+                ),
                 child: Text(
-                  statusText,
+                  metaText,
                   style: TextStyle(
                     color: AppColors.textGrey,
                     fontSize: 11,

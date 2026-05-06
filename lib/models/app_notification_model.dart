@@ -28,6 +28,9 @@ class AppNotificationModel {
   bool get isForManager => targetRole == 'manager';
   bool get isForAll => targetRole == 'all';
 
+  bool get isOrderNotification => type == 'order';
+  bool get hasOrder => orderId.isNotEmpty;
+
   factory AppNotificationModel.fromJson(Map<String, dynamic> json) {
     return AppNotificationModel(
       id: json['id']?.toString() ?? '',
@@ -53,8 +56,8 @@ class AppNotificationModel {
       'body': body,
       'type': type,
       'targetRole': targetRole,
-      'targetUser': targetUser.isEmpty ? null : targetUser,
-      'orderId': orderId.isEmpty ? null : orderId,
+      if (targetUser.isNotEmpty) 'targetUser': targetUser,
+      if (orderId.isNotEmpty) 'orderId': orderId,
       'isRead': isRead,
     };
   }

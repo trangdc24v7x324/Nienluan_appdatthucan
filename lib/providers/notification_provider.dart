@@ -118,7 +118,9 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createManagerNotification({
+  /// Manager tạo thông báo chung cho Customer.
+  /// Ví dụ: khuyến mãi, sản phẩm mới, thông báo hệ thống.
+  Future<bool> createCustomerNotification({
     required String title,
     required String body,
     required String type,
@@ -128,7 +130,7 @@ class NotificationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _service.createManagerNotification(
+      await _service.createCustomerNotification(
         title: title,
         body: body,
         type: type,
@@ -137,11 +139,51 @@ class NotificationProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _setError('Tạo thông báo thất bại');
-      debugPrint('createManagerNotification error: $e');
+      debugPrint('createCustomerNotification error: $e');
       return false;
     } finally {
       _isCreating = false;
       notifyListeners();
+    }
+  }
+
+  /// Tạo thông báo cho Customer sau khi đặt hàng thành công.
+  Future<bool> createOrderCreatedNotificationForCustomer({
+    required String customerId,
+    required String orderId,
+  }) async {
+    try {
+      await _service.createOrderCreatedNotificationForCustomer(
+        customerId: customerId,
+        orderId: orderId,
+      );
+
+      return true;
+    } catch (e) {
+      _setError('Không thể tạo thông báo đặt hàng');
+      debugPrint('createOrderCreatedNotificationForCustomer error: $e');
+      return false;
+    }
+  }
+
+  /// Tạo thông báo cho Customer khi Manager cập nhật trạng thái đơn hàng.
+  Future<bool> createOrderStatusNotificationForCustomer({
+    required String customerId,
+    required String orderId,
+    required String statusText,
+  }) async {
+    try {
+      await _service.createOrderStatusNotificationForCustomer(
+        customerId: customerId,
+        orderId: orderId,
+        statusText: statusText,
+      );
+
+      return true;
+    } catch (e) {
+      _setError('Không thể tạo thông báo cập nhật đơn hàng');
+      debugPrint('createOrderStatusNotificationForCustomer error: $e');
+      return false;
     }
   }
 

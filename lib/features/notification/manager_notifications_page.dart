@@ -110,7 +110,7 @@ class _ManagerNotificationsPageState extends State<ManagerNotificationsPage> {
     try {
       final success = await context
           .read<NotificationProvider>()
-          .createManagerNotification(
+          .createCustomerNotification(
             title: title,
             body: body,
             type: selectedType,

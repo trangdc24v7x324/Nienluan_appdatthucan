@@ -8,6 +8,7 @@ import 'package:CT466_project_trangdc24v7x324/shared/theme/app_text.dart';
 import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_layout.dart';
 import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_body.dart';
 import 'package:CT466_project_trangdc24v7x324/shared/widgets/app_card.dart';
+import 'package:CT466_project_trangdc24v7x324/features/product/screens/orders_page.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -153,13 +154,19 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     if (!mounted) return;
 
-    if (item.orderId.isNotEmpty && _isOrderType(item.type)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Có thể mở chi tiết đơn hàng từ thông báo này.'),
-        ),
+    if (_isOrderType(item.type) && item.orderId.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const OrdersPage()),
       );
+      return;
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Thông báo này không liên kết với đơn hàng.'),
+      ),
+    );
   }
 
   Widget _buildFilterChips(NotificationProvider provider) {
